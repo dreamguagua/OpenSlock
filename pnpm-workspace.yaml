@@ -1,0 +1,6 @@
+packages:
+  - "server"
+  - "cli"
+  - "daemon"
+  - "web"
+  # 后续: "shared"

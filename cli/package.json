@@ -1,0 +1,22 @@
+{
+  "name": "@crew-ai/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "crew CLI — agent 唯一对外发声通道 (注入 agent 环境,经 Bash 调用)",
+  "bin": {
+    "crew": "./dist/main.js"
+  },
+  "scripts": {
+    "crew": "tsx src/main.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
