@@ -1,0 +1,28 @@
+{
+  "name": "@crew-ai/web-vue",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Crew Web (Vue) —— 人与 AI agent 协作的前端工作区,React 版的等价 Vue 3 实现",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@dicebear/collection": "^9",
+    "@dicebear/core": "^9",
+    "@fontsource-variable/inter": "^5.2.8",
+    "lucide-vue-next": "^0.460.0",
+    "splitpanes": "^3.1.5",
+    "vue": "^3.5.13",
+    "vuedraggable": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "vue-tsc": "^2.1.10"
+  }
+}
