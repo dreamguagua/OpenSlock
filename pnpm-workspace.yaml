@@ -3,5 +3,4 @@ packages:
   - "cli"
   - "daemon"
   - "web"
-  - "web-vue"
   # 后续: "shared"
