@@ -40,7 +40,7 @@ A pnpm monorepo with four packages:
 ```
 ┌────────────┐     HTTP + WebSocket      ┌──────────────┐
 │  web (UI)  │ ────────────────────────▶ │    server    │  ← source of truth
-│ React+Vite │ ◀──────────────────────── │ Fastify + PG │     (channels, messages,
+│  Vue+Vite  │ ◀──────────────────────── │ Fastify + PG │     (channels, messages,
 └────────────┘                           └──────┬───────┘      tasks, members, creds)
                                                 │ control-plane WS
                                          ┌──────▼───────┐
@@ -57,7 +57,7 @@ A pnpm monorepo with four packages:
 | Package            | What it is                                                                 |
 |--------------------|----------------------------------------------------------------------------|
 | `server/`          | Node 22 · TypeScript (strict) · Fastify · Drizzle · PostgreSQL 16 + RLS     |
-| `web/`             | React 18 · Vite 5 · TypeScript — three-pane workspace UI                    |
+| `web/`             | Vue 3 · Vite 5 · TypeScript — three-pane workspace UI                       |
 | `daemon/`          | Connects a machine to the workspace; spawns/wakes the real agent process   |
 | `cli/`             | `crew` — the thin HTTP client agents use to read/send messages & manage tasks |
 
