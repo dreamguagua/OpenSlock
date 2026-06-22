@@ -8,3 +8,4 @@ coverage/
 .uploads/
 .DS_Store
 *.tsbuildinfo
+.gstack/

@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { AppServices } from "../services-context.js";
 import { err, ok, toHttpError } from "../envelope.js";
 import { principalOf, requireTier } from "../auth.js";
+import { resolveRequestOrigin } from "../request-origin.js";
 import { mentionedAgents } from "../../domain/mention.js";
 import { toDTO as attachmentDto } from "../../services/attachment.service.js";
 
@@ -625,7 +626,7 @@ export async function registerWebRoutes(
     try {
       const p = principalOf(req);
       const b = NewMachineBody.parse(req.body ?? {});
-      const result = await svc.machines.create(p.workspaceId, b.name);
+      const result = await svc.machines.create(p.workspaceId, b.name, resolveRequestOrigin(req.headers));
       return reply.code(201).send(ok(result));
     } catch (e) {
       const { status, body } = toHttpError(e);
@@ -665,7 +666,7 @@ export async function registerWebRoutes(
     try {
       const p = principalOf(req);
       const { id } = req.params as { id: string };
-      const result = await svc.machines.regenerateCommand(p.workspaceId, id);
+      const result = await svc.machines.regenerateCommand(p.workspaceId, id, resolveRequestOrigin(req.headers));
       if (!result) return reply.code(404).send(err("NOT_FOUND", `machine not found: ${id}`));
       return ok(result);
     } catch (e) {

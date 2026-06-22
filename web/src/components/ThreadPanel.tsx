@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Paperclip } from "lucide-react";
-import type { AgentStatusInfo, Channel, Message } from "../types.js";
+import type { AgentStatusInfo, Channel, Member, Message } from "../types.js";
 import { Avatar } from "./Avatar.js";
+import { MentionTextarea } from "./MentionTextarea.js";
 import { MessageText } from "./MessageText.js";
 import { AttachmentList } from "./AttachmentList.js";
 import { PendingFiles, imagesFromClipboard } from "./PendingFiles.js";
@@ -14,6 +15,7 @@ export function ThreadPanel(props: {
   replies: Message[];
   channels: Channel[];
   memberHandles: Set<string>;
+  members: Member[];
   agentStatus: Record<string, AgentStatusInfo>;
   onChannel: (id: string) => void;
   onTask: () => void;
@@ -65,14 +67,15 @@ export function ThreadPanel(props: {
       </div>
       <div className="composer composer-col">
         <PendingFiles files={files} onRemove={(i) => setFiles((prev) => prev.filter((_, j) => j !== i))} />
-        <textarea
-          data-testid="thread-input"
+        <MentionTextarea
+          testId="thread-input"
           placeholder="Reply to thread… (Enter to send)"
           value={text}
           disabled={busy}
-          onChange={(e) => setText(e.target.value)}
+          members={props.members}
+          onChange={setText}
           onPaste={(e) => { const imgs = imagesFromClipboard(e); if (imgs.length) { e.preventDefault(); setFiles((prev) => [...prev, ...imgs]); } }}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submit(); } }}
+          onEnter={() => void submit()}
         />
         <div className="composer-foot">
           <input

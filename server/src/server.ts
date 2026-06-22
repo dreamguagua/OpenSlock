@@ -15,7 +15,10 @@ import { defaultBus } from "./realtime/bus.js";
 import { defaultDaemonHub } from "./realtime/daemon-hub.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
-const HOST = process.env.HOST ?? "127.0.0.1";
+// 默认监听所有网卡,否则只听环回、局域网内其它机器永远连不进来。
+// 注意:不要读通用的 HOST 变量——zsh 等 shell 会自动把 $HOST 设成主机名(常解析为环回),
+// 导致服务只听环回、LAN 连不进来。用专用 CREW_HOST;需要只听本机时显式设 CREW_HOST=127.0.0.1。
+const HOST = process.env.CREW_HOST?.trim() || "0.0.0.0";
 
 async function main() {
   const repos = createPgRepos();

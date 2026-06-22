@@ -178,10 +178,10 @@ export interface AppServices {
   readonly machines: {
     list(ws: string): Promise<MachineRow[]>;
     get(ws: string, id: string): Promise<MachineRow | null>;
-    /** 新建机器:签发 sk_machine_*,返回机器 + 明文 token + 连接命令。 */
-    create(ws: string, name?: string): Promise<{ machine: MachineRow; token: string; connectCommand: string }>;
+    /** 新建机器:签发 sk_machine_*,返回机器 + 明文 token + 连接命令。requestOrigin=客户端访问 server 的 base URL(用于生成命令里的可达地址)。 */
+    create(ws: string, name?: string, requestOrigin?: string): Promise<{ machine: MachineRow; token: string; connectCommand: string }>;
     /** 为已有机器重新签发 token + 连接命令 (Generate Connect Command)。 */
-    regenerateCommand(ws: string, id: string): Promise<{ token: string; connectCommand: string } | null>;
+    regenerateCommand(ws: string, id: string, requestOrigin?: string): Promise<{ token: string; connectCommand: string } | null>;
     rename(ws: string, id: string, name: string): Promise<MachineRow | null>;
     setStatus(ws: string, id: string, status: "online" | "offline"): Promise<void>;
     updateInfo(ws: string, id: string, patch: MachineInfoPatch): Promise<void>;
@@ -344,8 +344,8 @@ export function createServices(
     machines: {
       list: (ws) => machineSvc.list(ws),
       get: (ws, id) => machineSvc.get(ws, id),
-      create: (ws, name) => machineSvc.create(ws, name),
-      regenerateCommand: (ws, id) => machineSvc.regenerateCommand(ws, id),
+      create: (ws, name, requestOrigin) => machineSvc.create(ws, name, requestOrigin),
+      regenerateCommand: (ws, id, requestOrigin) => machineSvc.regenerateCommand(ws, id, requestOrigin),
       rename: (ws, id, name) => machineSvc.rename(ws, id, name),
       setStatus: (ws, id, status) => machineSvc.setStatus(ws, id, status),
       updateInfo: (ws, id, patch) => machineSvc.updateInfo(ws, id, patch),

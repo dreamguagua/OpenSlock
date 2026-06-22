@@ -69,6 +69,8 @@ function Workspace(props: { token: string; onLogout: () => void }) {
 
   // @mention / #channel / #task 链接化的数据与跳转
   const memberHandles = new Set<string>([...c.agents.map((a) => a.handle), ...c.humans.map((h) => h.handle)]);
+  // @mention 自动补全候选:本工作区的 agent + human(humans 优先,通常更少更相关)
+  const mentionMembers = [...c.humans, ...c.agents];
   const jumpChannel = (id: string) => { c.selectChannel(id); setView("channel"); setTab("chat"); setThreadId(null); };
   const jumpTask = () => { setView("channel"); setTab("tasks"); };
 
@@ -234,6 +236,7 @@ function Workspace(props: { token: string; onLogout: () => void }) {
                 activeThreadId={threadId}
                 channels={c.channels}
                 memberHandles={memberHandles}
+                members={mentionMembers}
                 agentActivity={c.agentActivity}
                 agentStatus={c.agentStatus}
                 onChannel={jumpChannel}
@@ -273,6 +276,7 @@ function Workspace(props: { token: string; onLogout: () => void }) {
               replies={threadReplies}
               channels={c.channels}
               memberHandles={memberHandles}
+              members={mentionMembers}
               agentStatus={c.agentStatus}
               onChannel={jumpChannel}
               onTask={jumpTask}

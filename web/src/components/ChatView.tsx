@@ -1,8 +1,9 @@
 /** Chat tab:主流只显示顶层消息;有回复的消息显示「N 条回复」可点开线程。 */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { AgentActivity, AgentStatusInfo, Channel, Message, Task } from "../types.js";
+import type { AgentActivity, AgentStatusInfo, Channel, Member, Message, Task } from "../types.js";
 import { Avatar } from "./Avatar.js";
+import { MentionTextarea } from "./MentionTextarea.js";
 import { MessageText } from "./MessageText.js";
 import { TaskChip } from "./TaskChip.js";
 import { ReactionBar } from "./ReactionBar.js";
@@ -23,6 +24,7 @@ export function ChatView(props: {
   activeThreadId: string | null;
   channels: Channel[];
   memberHandles: Set<string>;
+  members: Member[];
   agentActivity: Record<string, AgentActivity>;
   agentStatus: Record<string, AgentStatusInfo>;
   onChannel: (id: string) => void;
@@ -178,14 +180,15 @@ export function ChatView(props: {
       <div className="composer composer-col" data-testid="composer">
         <PendingFiles files={files} onRemove={(i) => setFiles((prev) => prev.filter((_, j) => j !== i))} />
         {props.archived && <div className="archived-note" data-testid="archived-note"><Archive size={13} /> This channel is archived (read-only).</div>}
-        <textarea
-          data-testid="composer-input"
+        <MentionTextarea
+          testId="composer-input"
           placeholder={props.archived ? "Channel is archived (read-only)" : props.disabled ? "Select a channel first" : `Message #${props.channelName}… (Enter to send)`}
           value={text}
           disabled={props.disabled || busy}
-          onChange={(e) => setText(e.target.value)}
+          members={props.members}
+          onChange={setText}
           onPaste={(e) => { const imgs = imagesFromClipboard(e); if (imgs.length) { e.preventDefault(); setFiles((prev) => [...prev, ...imgs]); } }}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void submit(); } }}
+          onEnter={() => void submit()}
         />
         <div className="composer-foot">
           <input
