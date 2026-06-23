@@ -3,6 +3,7 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { homedir } from "node:os";
+import { createRequire } from "node:module";
 
 export interface DaemonConfig {
   readonly serverUrl: string;
@@ -16,9 +17,14 @@ export interface DaemonConfig {
 export class ConfigError extends Error {}
 
 function defaultCliPath(): string {
-  // daemon/src → 上两级到 crew/,再进 cli/dist/main.js
-  const here = dirname(fileURLToPath(import.meta.url));
-  return resolve(here, "../../cli/dist/main.js");
+  // 已发布场景(npx):crew CLI 是 daemon 的依赖,从 node_modules 解析 @crew-ai/cli。
+  try {
+    return createRequire(import.meta.url).resolve("@crew-ai/cli/dist/main.js");
+  } catch {
+    // 开发场景(monorepo):daemon/src → 上两级到 crew/,再进 cli/dist/main.js
+    const here = dirname(fileURLToPath(import.meta.url));
+    return resolve(here, "../../cli/dist/main.js");
+  }
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): DaemonConfig {

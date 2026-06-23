@@ -28,6 +28,13 @@ importers:
         version: 2.1.9(@types/node@22.19.21)
 
   daemon:
+    dependencies:
+      '@crew-ai/cli':
+        specifier: workspace:^
+        version: link:../cli
+      ws:
+        specifier: ^8
+        version: 8.21.0
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -44,9 +51,6 @@ importers:
       vitest:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.19.21)
-      ws:
-        specifier: ^8
-        version: 8.21.0
 
   server:
     dependencies:

@@ -836,8 +836,8 @@ describe("HTTP API (fastify.inject, 内存仓储)", () => {
     const d = created.json().data;
     expect(d.machine).toMatchObject({ name: "我的电脑", status: "offline" });
     expect(d.token).toMatch(/^sk_machine_/);
-    expect(d.connectCommand).toContain("CREW_MACHINE_TOKEN=");
-    expect(d.connectCommand).toContain("daemon serve");
+    expect(d.connectCommand).toContain("--api-key sk_machine_");
+    expect(d.connectCommand).toContain("npx -y @crew-ai/daemon@latest");
     expect(d.machine.tokenPrefix).toMatch(/^sk_machine_/);
 
     const list = await app.inject({ method: "GET", url: "/api/machines", headers: auth("user-tok") });
@@ -1093,7 +1093,7 @@ describe("HTTP API (fastify.inject, 内存仓储)", () => {
     const gen = await app.inject({ method: "POST", url: `/api/machines/${id}/connect-command`, headers: auth("user-tok") });
     expect(gen.statusCode).toBe(200);
     expect(gen.json().data.token).toMatch(/^sk_machine_/);
-    expect(gen.json().data.connectCommand).toContain("daemon serve");
+    expect(gen.json().data.connectCommand).toContain("npx -y @crew-ai/daemon@latest");
 
     const miss = await app.inject({ method: "POST", url: "/api/machines/00000000-0000-0000-0000-000000000000/connect-command", headers: auth("user-tok") });
     expect(miss.statusCode).toBe(404);

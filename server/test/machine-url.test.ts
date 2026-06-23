@@ -70,19 +70,19 @@ describe("MachineService 连接命令里的 server 地址解析优先级", () =>
   it("CREW_PUBLIC_URL 显式配置优先(域名/生产),并去掉尾部斜杠", async () => {
     process.env.CREW_PUBLIC_URL = "https://crew.example.com/";
     const { connectCommand } = await svc.create("ws1", "box", "http://192.168.1.20:3000");
-    expect(connectCommand).toContain("CREW_SERVER_URL=https://crew.example.com ");
+    expect(connectCommand).toContain("--server-url https://crew.example.com ");
     expect(connectCommand).not.toContain("crew.example.com/ ");
   });
 
   it("无显式配置时,用非环回请求来源的主机名 + server 端口", async () => {
     const { connectCommand } = await svc.create("ws1", "box", "http://192.168.1.20:3000");
-    expect(connectCommand).toContain("CREW_SERVER_URL=http://192.168.1.20:3000 ");
+    expect(connectCommand).toContain("--server-url http://192.168.1.20:3000 ");
   });
 
   it("前端 dev 端口(5173)不嵌入命令,改用 server 自身端口(daemon 直连 :3000)", async () => {
     // 管理员从 vite(:5173) 访问 Web UI,daemon 仍须连 server(:3000)
     const { connectCommand } = await svc.create("ws1", "box", "http://192.168.12.73:5173");
-    expect(connectCommand).toContain("CREW_SERVER_URL=http://192.168.12.73:3000 ");
+    expect(connectCommand).toContain("--server-url http://192.168.12.73:3000 ");
   });
 
   it("请求来源是环回时,绝不嵌 127.0.0.1(退化到 LAN 探测或本机)", async () => {
@@ -90,18 +90,18 @@ describe("MachineService 连接命令里的 server 地址解析优先级", () =>
     const lan = lanServerUrl(3000);
     if (lan) {
       // 有 LAN 网卡:必须用 LAN IP,不能是 127.0.0.1
-      expect(connectCommand).toContain(`CREW_SERVER_URL=${lan} `);
-      expect(connectCommand).not.toContain("CREW_SERVER_URL=http://127.0.0.1");
+      expect(connectCommand).toContain(`--server-url ${lan} `);
+      expect(connectCommand).not.toContain("--server-url http://127.0.0.1");
     } else {
       // 无 LAN 网卡(隔离 CI):兜底回到请求来源
-      expect(connectCommand).toContain("CREW_SERVER_URL=http://127.0.0.1:3000 ");
+      expect(connectCommand).toContain("--server-url http://127.0.0.1:3000 ");
     }
   });
 
   it("regenerateCommand 同样应用解析优先级(主机名取请求来源,端口取 server 端口)", async () => {
     const { machine } = await svc.create("ws1", "box");
     const res = await svc.regenerateCommand("ws1", machine.id, "http://10.0.0.5:8080");
-    expect(res?.connectCommand).toContain("CREW_SERVER_URL=http://10.0.0.5:3000 ");
+    expect(res?.connectCommand).toContain("--server-url http://10.0.0.5:3000 ");
   });
 
   it("机器不存在 → regenerateCommand 返回 null", async () => {

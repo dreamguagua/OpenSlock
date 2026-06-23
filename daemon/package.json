@@ -1,24 +1,37 @@
 {
   "name": "@crew-ai/daemon",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "description": "crew daemon — 运行在用户机器:拉起/管理 agent 进程,注入 crew CLI,归一化 runtime 事件",
+  "license": "Apache-2.0",
   "bin": {
     "crew-daemon": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "daemon": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crew-ai/cli": "workspace:^",
+    "ws": "^8"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0",
-    "ws": "^8"
+    "vitest": "^2.1.0"
   }
 }

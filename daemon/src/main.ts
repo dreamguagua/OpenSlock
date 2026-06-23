@@ -20,16 +20,26 @@ async function main() {
       channel: { type: "string" },
       wake: { type: "string" },
       display: { type: "string" },
+      // 连接参数(也可用 CREW_SERVER_URL / CREW_MACHINE_TOKEN 环境变量)
+      "server-url": { type: "string" },
+      "api-key": { type: "string" },
+      token: { type: "string" }, // --api-key 的别名
     },
   });
 
-  const cmd = positionals[0];
+  // 无子命令时默认 serve(对齐 `npx @crew-ai/daemon@latest --server-url ... --api-key ...`)
+  const cmd = positionals[0] ?? "serve";
   if (cmd !== "run" && cmd !== "serve") {
     process.stderr.write(
-      "用法:\n  crew-daemon serve                     # 常驻:连控制面,@agent/提醒自动唤醒\n  crew-daemon run --agent <h> --channel <id> [--wake ...]  # 手动跑一次\n",
+      "用法:\n  npx @crew-ai/daemon@latest --server-url <url> --api-key <sk_machine_*>   # 连接并常驻\n  crew-daemon run --agent <h> --channel <id> [--wake ...]                  # 手动跑一次\n",
     );
     process.exit(2);
   }
+
+  // 命令行参数优先于环境变量,填回 env 供 loadConfig 读取
+  if (values["server-url"]) process.env.CREW_SERVER_URL = values["server-url"];
+  const apiKey = values["api-key"] ?? values.token;
+  if (apiKey) process.env.CREW_MACHINE_TOKEN = apiKey;
 
   let config;
   try {

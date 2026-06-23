@@ -69,17 +69,15 @@ const publicServerUrl = (requestOrigin?: string): string => {
   return `http://127.0.0.1:${port}`;
 };
 
-/** 本地 daemon 目录 (生成命令用);默认按相对结构推断。 */
-const daemonDir = (): string =>
-  process.env.CREW_DAEMON_DIR ?? "<absolute path to crew/daemon>";
+/** 已发布的 daemon npm 包名(可用 CREW_DAEMON_PKG 覆盖)。 */
+const daemonPkg = (): string => process.env.CREW_DAEMON_PKG?.trim() || "@crew-ai/daemon";
 
-/** 生成"在目标电脑终端执行"的连接命令。 */
+/**
+ * 生成"在目标电脑终端执行"的连接命令——用 npx 拉起已发布的 daemon 包,
+ * 任何电脑都能跑(无需 clone 仓库、无本地路径),对齐 raft 的 `npx <daemon>@latest ...`。
+ */
 function buildConnectCommand(token: string, requestOrigin?: string): string {
-  return [
-    `CREW_SERVER_URL=${publicServerUrl(requestOrigin)}`,
-    `CREW_MACHINE_TOKEN=${token}`,
-    `pnpm --dir ${daemonDir()} daemon serve`,
-  ].join(" ");
+  return `npx -y ${daemonPkg()}@latest --server-url ${publicServerUrl(requestOrigin)} --api-key ${token}`;
 }
 
 export class MachineService {

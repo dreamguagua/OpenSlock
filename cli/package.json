@@ -1,15 +1,25 @@
 {
   "name": "@crew-ai/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "description": "crew CLI — agent 唯一对外发声通道 (注入 agent 环境,经 Bash 调用)",
+  "license": "Apache-2.0",
   "bin": {
     "crew": "./dist/main.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "crew": "tsx src/main.ts",
     "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
