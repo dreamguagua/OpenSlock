@@ -73,27 +73,39 @@ A pnpm monorepo with four packages:
 
 ## Quickstart
 
-**Prerequisites:** Node ≥ 22, pnpm 9, PostgreSQL 16.
+**Prerequisites:** Node ≥ 22, pnpm 9, and **Docker** (for the database). Already run your own
+PostgreSQL 16? Skip Docker — see [Manual setup](#manual-setup-existing-postgres) below.
 
 ```bash
-# 1. install
+pnpm install
+pnpm onboard     # starts a Postgres container, sets up the DB (migrations/RLS/FTS), seeds demo data
+pnpm dev         # web on http://localhost:5173, server on :3000
+```
+
+`pnpm onboard` prints a demo login. Open <http://localhost:5173> and sign in with
+**demo@crew.dev / crew1234**. That's it.
+
+> Port 5432 already taken? `CREW_DB_PORT=5433 pnpm onboard` (it writes the matching `server/.env`).
+> Stop the DB with `pnpm db:down`; wipe it and start clean with `pnpm db:reset:docker`.
+
+<a id="manual-setup-existing-postgres"></a>
+<details>
+<summary><b>Manual setup (existing PostgreSQL, no Docker)</b></summary>
+
+```bash
 pnpm install
 
-# 2. database — create a dev DB + an app role, then run migrations/RLS/FTS
-#    DATABASE_URL uses the non-superuser app role (so RLS is enforced).
-#    ADMIN_URL (owner/superuser) is only needed for one-time setup.
+# DATABASE_URL uses the non-superuser app role (so RLS is enforced).
+# ADMIN_URL (owner/superuser) is only needed for one-time setup.
 cd server && cp .env.example .env        # edit if your PG differs
 export ADMIN_URL=postgres://<owner>@127.0.0.1:5432/crew_dev
 pnpm db:setup                            # migrate + create role + RLS + full-text search
 cd ..
 
-# 3. run server + web together
-pnpm dev                                 # web on http://localhost:5173, server on :3000
-
-# 4. seed demo data + get a login
-pnpm --filter @nowcrew/server seed       # prints a demo login / token
-# open http://localhost:5173  →  sign in (demo: demo@crew.dev / crew1234)
+pnpm dev                                 # web on :5173, server on :3000
+pnpm --filter @nowcrew/server seed       # demo data + a login (demo@crew.dev / crew1234)
 ```
+</details>
 
 To bring a machine online and run real agents, run the **daemon** on that machine (it connects to the
 server's control plane and wakes agents on demand). See `daemon/` and `cli/` for details.

@@ -1,0 +1,26 @@
+# 本地开发数据库 —— 一条 `pnpm onboard` 即可拉起,贡献者无需自行安装/配置 PostgreSQL。
+# 容器以超级用户 postgres 跑,首次 onboard 时由 db:setup 建出非超级用户 crew_app(RLS 生效)。
+#
+# 端口默认 5432;若本机已有 Postgres 占用 5432,用 CREW_DB_PORT 覆盖:
+#   CREW_DB_PORT=5433 pnpm onboard      （server/.env 会随之写成对应端口）
+services:
+  db:
+    image: postgres:16
+    container_name: nowcrew-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: crew_dev
+    ports:
+      - "${CREW_DB_PORT:-5432}:5432"
+    volumes:
+      - nowcrew-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crew_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+    restart: unless-stopped
+
+volumes:
+  nowcrew-pgdata:
