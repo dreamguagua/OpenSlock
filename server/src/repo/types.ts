@@ -304,6 +304,8 @@ export interface MachineRepo {
   get(workspaceId: string, id: string): Promise<MachineRow | null>;
   create(workspaceId: string, m: NewMachine): Promise<MachineRow>;
   rename(workspaceId: string, id: string, name: string): Promise<MachineRow | null>;
+  /** 删除机器;同时解绑其上 agent(machineId→null)。PG 靠 FK onDelete:set null,内存实现手动解绑。返回是否删到行。 */
+  delete(workspaceId: string, id: string): Promise<boolean>;
   /** 记录凭证前缀 (新建后 mint token 才得到,用于 UI 展示)。 */
   setTokenPrefix(workspaceId: string, id: string, prefix: string): Promise<void>;
   /** 在线状态切换 (控制面连接/断开驱动);online 时刷新 lastSeenAt。 */
@@ -556,11 +558,16 @@ export interface TaskRepo {
     actor: Actor,
     nextStatus: TaskStatus,
   ): Promise<TaskMutationOutcome>;
-  /** 原子改状态:仅当 assignee 仍是 actor 且未 done 时生效。 */
+  /**
+   * 原子改状态(乐观并发):仅当 assignee 仍等于 service 读到的 expectedAssignee
+   * (即「读→写」之间未被并发改派)且未 done 时生效。
+   * 权限(谁能改)由 service 层 decideStatusUpdate 判定,repo 不再重复校验,
+   * 故这里用 expectedAssignee 做 CAS,而非发起人 actor。
+   */
   updateStatus(
     workspaceId: string,
     taskId: string,
-    actor: Actor,
+    expectedAssignee: Actor | null,
     nextStatus: TaskStatus,
   ): Promise<TaskMutationOutcome>;
   /**

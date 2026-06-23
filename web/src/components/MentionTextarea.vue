@@ -33,10 +33,15 @@ const matches = computed(() =>
 );
 const open = computed(() => menu.value !== null && matches.value.length > 0);
 
-// 依据 textarea 当前内容与光标重算菜单状态
+// 依据 textarea 当前内容与光标重算菜单状态。
+// 关键:仅当补全词(start+query)变化时才把高亮重置回第一项;否则方向键的 keyup 也会触发 sync,
+// 会把刚用 ↑↓ 选中的项弹回第一个(alice #65 的「切换完又蹦回第一个」)。
 const sync = (ta: HTMLTextAreaElement) => {
-  menu.value = findMentionQuery(ta.value, ta.selectionStart ?? ta.value.length);
-  active.value = 0;
+  const next = findMentionQuery(ta.value, ta.selectionStart ?? ta.value.length);
+  const sameToken =
+    next !== null && menu.value !== null && next.start === menu.value.start && next.query === menu.value.query;
+  menu.value = next;
+  if (!sameToken) active.value = 0;
 };
 
 const choose = (m: Member) => {

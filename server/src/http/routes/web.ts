@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { AppServices } from "../services-context.js";
 import { err, ok, toHttpError } from "../envelope.js";
 import { principalOf, requireTier } from "../auth.js";
+import { maybePruneWorklog } from "../worklog-prune.js";
 import { resolveRequestOrigin } from "../request-origin.js";
 import { mentionedAgents } from "../../domain/mention.js";
 import { toDTO as attachmentDto } from "../../services/attachment.service.js";
@@ -661,6 +662,19 @@ export async function registerWebRoutes(
     }
   });
 
+  app.delete("/api/machines/:id", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      const { id } = req.params as { id: string };
+      const deleted = await svc.machines.delete(p.workspaceId, id);
+      if (!deleted) return reply.code(404).send(err("NOT_FOUND", `machine not found: ${id}`));
+      return ok({ deleted: true });
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
   // 重新生成连接命令 (Generate Connect Command):为已有机器重发 token
   app.post("/api/machines/:id/connect-command", guard, async (req, reply) => {
     try {
@@ -768,9 +782,10 @@ export async function registerWebRoutes(
     try {
       const p = principalOf(req);
       const { taskId } = req.params as { taskId: string };
-      const b = z.object({ status: z.enum(["todo", "in_progress", "in_review", "done"]) }).parse(req.body);
+      const b = z.object({ status: z.enum(["todo", "in_progress", "in_review", "done", "closed"]) }).parse(req.body);
       const task = await svc.tasks.updateStatus(p.workspaceId, p.actor, taskId, b.status);
       svc.emit(p.workspaceId, { type: "task.updated", taskId });
+      maybePruneWorklog(svc, p.workspaceId, task);
       return ok(task);
     } catch (e) {
       const { status, body } = toHttpError(e);

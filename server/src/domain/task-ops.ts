@@ -4,8 +4,8 @@
  * 规则:
  * - 改状态:人类可改任意任务(与"人类可改派 reassign"一致——人在频道里是协调者);
  *   agent 只能改自己认领的任务(防止 agent 互相覆盖)。
+ * - 任意状态可互相流转,包含把 done / closed 重新打开(无终态限制)。
  * - unclaim:只有当前 assignee 能释放(别人的认领不能替他放)。
- * - done 是终态:不能再改状态 (重开属未来能力,见 TODO)。
  * - unclaim 释放认领;若当时是 in_progress 则状态回退到 todo,便于干净地被重新认领。
  */
 
@@ -24,7 +24,6 @@ export function isTaskStatus(v: string): v is TaskStatus {
 
 export type StatusUpdateResult =
   | { readonly kind: "ok"; readonly status: TaskStatus }
-  | { readonly kind: "terminal" } // 已 done,终态
   | { readonly kind: "forbidden" } // agent 改了不属于自己的任务
   | { readonly kind: "invalid" }; // 非法目标状态
 
@@ -34,7 +33,7 @@ export function decideStatusUpdate(
   next: string,
 ): StatusUpdateResult {
   if (!isTaskStatus(next)) return { kind: "invalid" };
-  if (task.status === "done") return { kind: "terminal" };
+  // 无终态:任意状态可互转(含把 done / closed 重新打开)。
   // 人类是频道协调者:可改任意任务状态(与 reassign 的"人类放行"一致)。
   if (actor.type === "human") return { kind: "ok", status: next };
   // agent 只能改自己认领的任务。

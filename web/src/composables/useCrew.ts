@@ -48,6 +48,7 @@ export interface CrewState {
   refreshMachines: () => Promise<void>;
   createMachine: (name?: string) => Promise<CreateMachineResult>;
   renameMachine: (id: string, name: string) => Promise<Machine>;
+  deleteMachine: (id: string) => Promise<void>;
 }
 
 export function useCrew(token: string): CrewState {
@@ -302,6 +303,11 @@ export function useCrew(token: string): CrewState {
     await refreshMachines();
     return m;
   };
+  const deleteMachine = async (id: string) => {
+    await api.deleteMachine(id);
+    await refreshMachines();
+    await loadServerInfo(); // 机器上的 agent 被解绑(machineId→null),刷新 agent 列表
+  };
 
   // 初次加载机器列表
   onMounted(() => { void refreshMachines(); });
@@ -313,7 +319,7 @@ export function useCrew(token: string): CrewState {
     selectChannel, send, reply, createTask, search, createAgent, importAgent, editAgent, removeAgent, openDm,
     createChannel, joinChannel, leaveChannel, archiveChannel, addChannelMember, removeChannelMember,
     claimTask, setTaskStatus, unclaimTask, moveTask, toggleReaction, toggleSave, sendWithFiles, replyWithFiles,
-    machines, refreshMachines, createMachine, renameMachine,
+    machines, refreshMachines, createMachine, renameMachine, deleteMachine,
     actionsTick,
   }) as CrewState;
 }

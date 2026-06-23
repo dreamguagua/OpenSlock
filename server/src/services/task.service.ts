@@ -268,13 +268,12 @@ export class TaskService {
     if (decision.kind === "invalid") {
       throw new DomainError("VALIDATION", `invalid status: ${nextStatus}`, { nextStatus });
     }
-    if (decision.kind === "terminal") {
-      throw new DomainError("CONFLICT", "task is done (terminal)", { taskId });
-    }
     if (decision.kind === "forbidden") {
       throw new DomainError("FORBIDDEN", "only the assignee or a human can update status", { taskId });
     }
-    const out = await this.tasks.updateStatus(workspaceId, taskId, actor, decision.status);
+    // 权限已由 decideStatusUpdate 放行;repo 仅做乐观并发 CAS:
+    // 用 service 刚读到的 task.assignee 作为期望值,确保「读→写」之间未被并发改派。
+    const out = await this.tasks.updateStatus(workspaceId, taskId, task.assignee, decision.status);
     if (out.kind !== "ok") {
       throw new DomainError("CONFLICT", "status update failed (concurrent change)", { taskId });
     }

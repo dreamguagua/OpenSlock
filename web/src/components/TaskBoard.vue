@@ -9,11 +9,14 @@ import TaskCard from "./TaskCard.vue";
 import TaskRowItem from "./TaskRowItem.vue";
 import type { Task, TaskStatus } from "../types.js";
 
-const COLUMNS: { key: TaskStatus; label: string }[] = [
+// 看板五列(对齐 raft):TODO / IN PROGRESS / IN REVIEW / DONE / CLOSED。
+type ColKey = TaskStatus;
+const COLUMNS: { key: ColKey; label: string }[] = [
   { key: "todo", label: "TODO" },
   { key: "in_progress", label: "IN PROGRESS" },
   { key: "in_review", label: "IN REVIEW" },
   { key: "done", label: "DONE" },
+  { key: "closed", label: "CLOSED" },
 ];
 
 const props = defineProps<{
@@ -42,20 +45,24 @@ const visible = computed(() => props.tasks.filter((t) =>
   (!assigneeFilter.value || (assigneeFilter.value === "__none__" ? !t.assignee : t.assignee?.id === assigneeFilter.value)),
 ));
 
-// 看板四列的本地镜像(vuedraggable 需要可变列表;props 变化即重建,保持后端为真相源)
-const board = ref<Record<TaskStatus, Task[]>>({ todo: [], in_progress: [], in_review: [], done: [] });
-watch(visible, (vis) => {
+// 看板四列的本地镜像(vuedraggable 需要可变列表;以后端为真相源:props 变化或拖拽失败即重建)
+const board = ref<Record<ColKey, Task[]>>({ todo: [], in_progress: [], in_review: [], done: [], closed: [] });
+const rebuildBoard = () => {
+  const vis = visible.value;
   board.value = {
     todo: vis.filter((t) => t.status === "todo"),
     in_progress: vis.filter((t) => t.status === "in_progress"),
     in_review: vis.filter((t) => t.status === "in_review"),
     done: vis.filter((t) => t.status === "done"),
+    closed: vis.filter((t) => t.status === "closed"),
   };
-}, { immediate: true });
+};
+watch(visible, rebuildBoard, { immediate: true });
 
-// List 视图:按列顺序 + 编号排序
+// List 视图:按列顺序 + 编号排序;"closed" 不在列里,排到最后。
+const colIdx = (s: TaskStatus) => { const i = COLUMNS.findIndex((c) => c.key === s); return i === -1 ? COLUMNS.length : i; };
 const orderedList = computed(() => [...visible.value].sort(
-  (a, b) => COLUMNS.findIndex((c) => c.key === a.status) - COLUMNS.findIndex((c) => c.key === b.status) || a.number - b.number,
+  (a, b) => colIdx(a.status) - colIdx(b.status) || a.number - b.number,
 ));
 
 const create = async () => {
@@ -65,12 +72,17 @@ const create = async () => {
   title.value = ""; creating.value = false;
 };
 
-// 拖拽:卡片进入新列(状态不同)即触发流转
-const onColChange = (status: TaskStatus, evt: { added?: { element: Task } }) => {
+// 拖拽:卡片进入新列(状态不同)即触发流转。失败则回滚本地镜像到后端真相,避免出现
+// "卡片落在新列但状态没变"的错位(如之前 done 卡片停留在 in_review)。
+const onColChange = async (status: ColKey, evt: { added?: { element: Task } }) => {
   const added = evt.added;
-  if (added) {
-    const task = added.element;
-    if (task.status !== status && COLUMNS.some((c) => c.key === status)) void props.onMove(task.id, status);
+  if (!added) return;
+  const task = added.element;
+  if (task.status === status || !COLUMNS.some((c) => c.key === status)) return;
+  try {
+    await props.onMove(task.id, status);
+  } catch {
+    rebuildBoard(); // 回滚:把卡片放回它在后端的真实状态列
   }
 };
 // 拖动经过哪一列:高亮 drop-over

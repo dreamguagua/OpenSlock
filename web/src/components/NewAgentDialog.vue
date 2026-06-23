@@ -25,6 +25,7 @@ function deriveHandle(name: string): string {
 
 const props = defineProps<{
   machines: Machine[];
+  preselectedMachineId?: string;
   onCreate: (input: NewAgentInput) => Promise<AgentProfile>;
   onClose: () => void;
   onCreated: (handle: string) => void;
@@ -35,7 +36,7 @@ const description = ref("");
 const avatarUrl = ref("");
 const runtime = ref("claude");
 const model = ref("");
-const machineId = ref("");
+const machineId = ref(props.preselectedMachineId ?? ""); // 从电脑详情页打开时预选本机
 const rt = ref<RtConfig>({ ...DEFAULT_RT });
 const error = ref<string | null>(null);
 const busy = ref(false);

@@ -64,8 +64,10 @@ input:focus, textarea:focus, select:focus { outline: none; }
 }
 
 /* ===== Token Gate ===== */
-.gate { display: grid; place-items: center; height: 100%; background: var(--col); }
-.gate-top { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: var(--yellow); color: #fff; border-bottom: var(--bd); display: flex; align-items: center; gap: 10px; padding: 0 18px; font-weight: 700; font-size: 20px; letter-spacing: 1px; }
+.gate { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; height: 100%; background: var(--col); }
+/* 品牌:浅底上的居中标记(不再用整条满宽色条,避免 Safari 把工具栏整片染色) */
+.gate-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 700; font-size: 24px; letter-spacing: 1px; }
+.gate-brand svg { color: var(--yellow); }
 .gate-card { width: 440px; background: #fff; border: var(--bd); border-radius: var(--radius); padding: 30px; box-shadow: 0 12px 32px rgba(28, 28, 40, .14); }
 .gate-card h1 { margin: 0 0 4px; text-align: center; }
 .gate-card p { margin: 0 0 20px; text-align: center; color: var(--muted); }
@@ -160,14 +162,9 @@ input:focus, textarea:focus, select:focus { outline: none; }
   font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--muted);
   border-radius: 8px;
 }
-.live-pill.on { color: #1a7f37; }
-.live-pill .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #c2c2c2; }
-.live-pill.on .live-dot { background: #16a34a; box-shadow: 0 0 0 0 rgba(32,194,90,.6); animation: livepulse 2s ease-out infinite; }
-@keyframes livepulse {
-  0% { box-shadow: 0 0 0 0 rgba(32,194,90,.55); }
-  70% { box-shadow: 0 0 0 6px rgba(32,194,90,0); }
-  100% { box-shadow: 0 0 0 0 rgba(32,194,90,0); }
-}
+.live-pill.on { color: #16a34a; }
+.live-pill .live-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #c2c2c2; }
+.live-pill.on .live-dot { background: #16a34a; }
 .tabs { display: flex; gap: 6px; padding: 8px 16px 0; border-bottom: var(--bd); }
 .tab { display: flex; align-items: center; gap: 6px; padding: 7px 14px; font-weight: 600; border: 1px solid transparent; border-bottom: none; border-radius: var(--radius) var(--radius) 0 0; cursor: pointer; color: var(--muted); position: relative; top: 2px; }
 .tab:hover { color: var(--ink); }
@@ -245,12 +242,37 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .msg-foot .thread-summary { margin-top: 0; }
 
 /* 关联 task 标签:背景色随状态(复用看板配色) */
-.task-chip { display: inline-flex; align-items: center; gap: 6px; border: var(--bd); border-radius: var(--radius); padding: 3px 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--ink); }
+.task-chip { position: relative; display: inline-flex; align-items: center; gap: 6px; border: var(--bd); border-radius: var(--radius); padding: 3px 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--ink); }
 .task-chip.todo { background: var(--grey-pill); }
 .task-chip.in_progress { background: var(--blue); }
 .task-chip.in_review { background: #c7b3ff; }
 .task-chip.done { background: var(--green); }
+.task-chip.closed { background: #d4d4d8; color: var(--muted); }
 .task-chip:hover { box-shadow: 0 2px 8px rgba(28, 28, 40, .12); }
+.task-chip-num { font-weight: 700; flex: none; }
+.task-chip-asg { display: inline-flex; align-items: center; gap: 4px; flex: none; padding-left: 8px; margin-left: 2px; border-left: 1px solid rgba(28, 28, 40, .18); }
+.task-chip-asg-name { font-weight: 600; }
+.task-chip-asg-none { font-weight: 500; opacity: .6; }
+/* chip 内部两个点击区:状态徽标(下拉触发)+ 编号/assignee(开 thread)。按钮去样式继承 chip。 */
+.task-chip-status { display: inline-flex; align-items: center; gap: 1px; padding: 1px 2px; margin: -1px 0; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer; border-radius: 5px; }
+.task-chip-status:hover { background: rgba(28, 28, 40, .12); }
+.task-chip-caret { opacity: .6; flex: none; }
+.task-chip-body { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: none; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+/* 状态下拉菜单 */
+.task-chip-menu { position: absolute; left: 0; z-index: 41; min-width: 156px;
+  display: flex; flex-direction: column; gap: 1px; padding: 4px;
+  background: #fff; border: var(--bd); border-radius: 8px; box-shadow: 0 8px 24px rgba(28, 28, 40, .16); }
+.task-chip-menu.up { bottom: 100%; margin-bottom: 4px; }
+.task-chip-menu.down { top: 100%; margin-top: 4px; }
+.task-chip-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px;
+  border: none; background: transparent; border-radius: 6px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--ink); text-align: left; }
+.task-chip-menu-item:hover:not(:disabled) { background: #f2f2f7; }
+.task-chip-menu-item.current { background: #eef0fe; }
+.task-chip-menu-item:disabled { opacity: .55; cursor: default; }
+.task-chip-menu-label { flex: 1; white-space: nowrap; }
+.task-chip-menu-check { flex: none; color: #2563eb; }
+.task-chip-menu-err { padding: 5px 8px; max-width: 200px; color: #b42318; font-size: 11px; font-weight: 600; }
 
 .thread-summary { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; border: var(--bd); border-radius: 999px; background: #fff; color: #6366f1; font-weight: 600; font-size: 12px; padding: 3px 10px; cursor: pointer; }
 .thread-summary:hover { background: #f2f2f7; }
@@ -261,6 +283,7 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .thread { background: var(--col); display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
 .thread-head { display: flex; align-items: center; height: var(--head-h); flex: none; padding: 0 14px; border-bottom: var(--bd); }
 .thread-head > div { flex: 1; }
+.thread-head-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .thread-head .nb-btn { padding: 2px 10px; font-size: 16px; line-height: 1; }
 .thread-body { flex: 1; overflow: auto; padding: 10px 14px; }
 .thread-parent { background: #fff; border: var(--bd); border-radius: var(--radius); padding: 6px 10px; margin-bottom: 10px; }
@@ -277,6 +300,7 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .col-pill.in_progress { background: var(--blue); }
 .col-pill.in_review { background: #c7b3ff; }
 .col-pill.done { background: var(--green); }
+.col-pill.closed { background: #d4d4d8; color: var(--muted); }
 .tcard { background: #fff; border: var(--bd); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(28, 28, 40, .10); }
 .tcard .id { color: var(--muted); font-size: 12px; font-weight: 600; }
 .tcard .ttl { margin: 4px 0 10px; }
@@ -403,7 +427,13 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .member-row.active { background: var(--pink-soft); border: var(--bd); font-weight: 600; }
 .member-row .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; }
 .member-row .member-sub { color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
-.dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); margin-left: auto; flex-shrink: 0; }
+/* display:inline-block 是关键:.dot 在非 flex 上下文(如 DM 头部名字旁 inline span)里,
+   inline 元素会忽略 width/height → 退化成被边框压扁的小条(用户看到的"不是圆形")。
+   inline-block 让 width/height 生效,box-sizing 让 1.5px 边框不撑破方形 → 处处正圆。 */
+/* display:inline-block 是关键:.dot 在非 flex 上下文(如 DM 头部名字旁 inline span)里,
+   inline 元素会忽略 width/height → 退化成被边框压扁的竖条(用户看到的"不是圆形")。
+   inline-block 让 width/height 生效,box-sizing 让 1.5px 边框不撑破方形 → 处处正圆。 */
+.dot { display: inline-block; box-sizing: border-box; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); margin-left: auto; flex-shrink: 0; vertical-align: middle; }
 .dot.on, .dot.online { background: var(--green); }
 .dot.idle, .dot.offline { background: #d4d4d8; }
 .dot.busy { background: var(--busy); animation: pulse 1.1s ease-in-out infinite; }
@@ -425,6 +455,7 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .profile-hero .hero-status { font-size: 13px; font-weight: 600; color: var(--muted); }
 .profile-hero .hero-handle { color: var(--muted); font-family: ui-monospace, monospace; font-size: 13px; }
 .profile-sect { margin: 20px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }
+.profile-sect-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .field-block { margin: 12px 0; }
 .field-label { font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--muted); margin-bottom: 3px; }
 .field-value { font-weight: 600; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }

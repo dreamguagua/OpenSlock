@@ -3,7 +3,7 @@
  *  + AGENTS ON THIS COMPUTER。 */
 
 import { ref, watch } from "vue";
-import { Monitor, Pencil, Check, RefreshCw, Copy } from "lucide-vue-next";
+import { Monitor, Pencil, Check, RefreshCw, Copy, Plus, Trash2 } from "lucide-vue-next";
 import Avatar from "./Avatar.vue";
 import { api } from "../api.js";
 import type { AgentProfile, AgentStatusInfo, Machine } from "../types.js";
@@ -12,6 +12,10 @@ const props = defineProps<{
   machine: Machine;
   agentStatus: Record<string, AgentStatusInfo>;
   onRename: (id: string, name: string) => Promise<Machine>;
+  onDelete: (id: string) => Promise<void>;
+  onCreateAgent: () => void;
+  // 父级在「创建 agent 后」自增此值,触发本机 agent 列表重拉(AgentProfile 才带 machineId/runtime,故单独拉)
+  reloadKey?: number;
 }>();
 
 const agents = ref<AgentProfile[]>([]);
@@ -19,11 +23,25 @@ const editing = ref(false);
 const name = ref(props.machine.name);
 const command = ref<string | null>(null);
 const genBusy = ref(false);
+const confirmDelete = ref(false);
+const deleting = ref(false);
 
-watch([() => props.machine.id, () => props.machine.name], () => {
-  name.value = props.machine.name; editing.value = false; command.value = null;
+const loadAgents = () => {
   api.agents().then((all) => { agents.value = all.filter((a) => a.machineId === props.machine.id); }).catch(() => {});
+};
+
+watch([() => props.machine.id, () => props.machine.name, () => props.reloadKey], () => {
+  name.value = props.machine.name; editing.value = false; command.value = null; confirmDelete.value = false;
+  loadAgents();
 }, { immediate: true });
+
+const doDelete = async () => {
+  if (deleting.value) return;
+  deleting.value = true;
+  try { await props.onDelete(props.machine.id); confirmDelete.value = false; }
+  catch { /* 失败保留弹窗 */ }
+  finally { deleting.value = false; }
+};
 
 const generate = async () => {
   if (genBusy.value) return;
@@ -114,12 +132,43 @@ const createdStr = () => {
           <div class="fake" :style="{ marginTop: '6px' }">Once run, this computer comes online and reports its OS / runtimes. Regenerating invalidates the old command.</div>
         </template>
 
-        <div class="profile-sect">AGENTS ON THIS COMPUTER {{ agents.length }}</div>
+        <div class="profile-sect profile-sect-row">
+          <span>AGENTS ON THIS COMPUTER {{ agents.length }}</span>
+          <button class="nb-btn" data-testid="machine-create-agent" title="Create an agent on this computer" @click="onCreateAgent">
+            <Plus :size="13" /> Create
+          </button>
+        </div>
         <div v-if="agents.length === 0" class="fake">No agents are running on this computer yet</div>
         <div v-for="a in agents" :key="a.handle" class="member-row" data-testid="machine-agent-row" :style="{ cursor: 'default' }">
           <Avatar type="agent" :id="a.handle" :size="26" :status="agentStatus[a.handle]?.kind" />
           <span class="nm">{{ a.displayName }}</span>
           <span class="member-sub">{{ a.runtime }}{{ a.model ? ` · ${a.model}` : "" }}</span>
+        </div>
+
+        <div class="profile-sect">ACTIONS</div>
+        <button class="nb-btn danger" data-testid="machine-delete" @click="confirmDelete = true">
+          <Trash2 :size="13" /> Delete Computer
+        </button>
+        <div class="fake" :style="{ marginTop: '6px' }">
+          Permanently remove this computer. Agents on it will be unassigned (their machine cleared), not deleted.
+        </div>
+      </div>
+    </div>
+
+    <div v-if="confirmDelete" class="modal-overlay" data-testid="machine-delete-confirm" @click="confirmDelete = false">
+      <div class="modal" :style="{ maxWidth: '420px' }" @click.stop>
+        <div class="modal-head">Delete Computer</div>
+        <div class="modal-body">
+          <p>Permanently delete <strong>{{ machine.name }}</strong>? This cannot be undone.</p>
+          <p v-if="agents.length" class="fake">
+            {{ agents.length }} agent{{ agents.length > 1 ? "s" : "" }} on this computer will be unassigned (not deleted) — reassign {{ agents.length > 1 ? "them" : "it" }} to another computer later.
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button class="nb-btn" @click="confirmDelete = false" :disabled="deleting">Cancel</button>
+          <button class="nb-btn danger" data-testid="machine-delete-confirm-btn" @click="doDelete" :disabled="deleting">
+            {{ deleting ? "Deleting…" : "Delete Computer" }}
+          </button>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@
  * 首次运行时生成,DB 行另起新 uuid —— 所以这里只搬运用户内容,内部一律重建。
  */
 
-import { readFile, readdir, stat, cp, mkdir } from "node:fs/promises";
+import { readFile, writeFile, readdir, stat, cp, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -63,6 +63,28 @@ export function parseMemory(md: string): { name: string; description: string } {
   return { name, description: description.slice(0, 3000) };
 }
 
+/**
+ * 导入时清空 MEMORY.md 的 `## Active Context` 段:其内容是 raft 里的在办任务进度(含任务 id),
+ * 这些 id 在新的 Crew 里不一定存在,照搬会误导。保留标题,正文换成占位提示让 agent 重新记录。
+ * 其它段(Role/索引/领域知识)照常保留。
+ */
+export function stripActiveContext(md: string): string {
+  const lines = md.split(/\r?\n/);
+  const start = lines.findIndex((l) => /^##\s+Active Context\b/i.test(l));
+  if (start < 0) return md;
+  // 段落结束 = 下一个 # / ## 标题,或 `---` 分隔线,或文件末尾
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^#{1,2}\s+/.test(lines[i]!) || /^---\s*$/.test(lines[i]!)) { end = i; break; }
+  }
+  const replacement = [
+    lines[start]!, // 原 `## Active Context` 标题
+    "<!-- (导入时已清空:raft 的在办任务/任务 id 不属于本 Crew。开工时在此重新记录当前进度。) -->",
+    "",
+  ];
+  return [...lines.slice(0, start), ...replacement, ...lines.slice(end)].join("\n");
+}
+
 async function assertDir(srcPath: string): Promise<void> {
   let st;
   try {
@@ -101,7 +123,13 @@ export async function importRaftWorkspace(rawPath: string, destDir: string): Pro
   const copied: string[] = [];
   for (const e of all) {
     if (SKIP.has(e) || e.startsWith(".")) continue;
-    await cp(join(srcPath, e), join(destDir, e), { recursive: true });
+    if (e === "MEMORY.md") {
+      // MEMORY.md 特殊处理:剥离 Active Context(陈旧任务 id)后再落地,其余原样保留。
+      const cleaned = stripActiveContext(await readFile(join(srcPath, e), "utf8"));
+      await writeFile(join(destDir, e), cleaned, "utf8");
+    } else {
+      await cp(join(srcPath, e), join(destDir, e), { recursive: true });
+    }
     copied.push(e);
   }
   return { copied, dir: destDir };

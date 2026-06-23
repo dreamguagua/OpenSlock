@@ -150,7 +150,7 @@ describe.skipIf(!HAS_DB)("PG:task 全套(P2)", () => {
     const task = await repos.tasks.create(workspaceId, { channelId, title: "fix", messageId: m.id, createdBy: human });
 
     expect((await repos.tasks.claim(workspaceId, task.id, a)).kind).toBe("claimed");
-    // b 改状态 → 条件 UPDATE 不匹配 → conflict(原子保证别人改不了)
+    // 期望 assignee 传 b,但实际 assignee 是 a → 乐观并发 CAS 不匹配 → conflict
     expect((await repos.tasks.updateStatus(workspaceId, task.id, b, "done")).kind).toBe("conflict");
     expect((await repos.tasks.updateStatus(workspaceId, task.id, a, "in_review")).kind).toBe("ok");
     const done = await repos.tasks.updateStatus(workspaceId, task.id, a, "done");

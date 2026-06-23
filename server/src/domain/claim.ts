@@ -17,6 +17,7 @@ export const TASK_STATUSES = [
   "in_progress",
   "in_review",
   "done",
+  "closed",
 ] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 

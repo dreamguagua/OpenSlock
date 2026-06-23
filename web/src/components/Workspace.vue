@@ -43,6 +43,8 @@ const tab = ref<Tab>("chat");
 const threadId = ref<string | null>(null);
 const selectedAgent = ref<string | null>(null);
 const showNewAgent = ref(false);
+const newAgentMachineId = ref<string | null>(null); // 从电脑详情「+ Create」打开时预选的本机 id
+const machineAgentsTick = ref(0); // 自增以让 MachineDetail 重拉本机 agent 列表(创建后)
 const showImportAgent = ref(false);
 const showSettings = ref(false);
 const selectedMachine = ref<string | null>(null);
@@ -61,6 +63,8 @@ const memberCount = computed(() => channel.value?.memberCount ?? 0);
 // 线程数据(从当前频道消息派生)
 const threadParent = computed(() => (threadId.value ? c.messages.find((m) => m.id === threadId.value) ?? null : null));
 const threadReplies = computed(() => (threadId.value ? c.messages.filter((m) => m.threadParentId === threadId.value) : []));
+// 线程对应的任务(锚定在父消息上):用于 thread 头部展示「任务号 + assignee」
+const threadTask = computed(() => (threadId.value ? c.tasks.find((t) => t.messageId === threadId.value) ?? null : null));
 const threadOpen = computed(() => view.value === "channel" && (tab.value === "chat" || tab.value === "tasks") && threadParent.value !== null);
 
 // @mention / #channel / #task 链接化的数据与跳转
@@ -177,7 +181,12 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
           </template>
 
           <template v-else-if="view === 'computers'">
-            <MachineDetail v-if="machine" :machine="machine" :agent-status="c.agentStatus" :on-rename="c.renameMachine" />
+            <MachineDetail
+              v-if="machine" :machine="machine" :agent-status="c.agentStatus" :reload-key="machineAgentsTick"
+              :on-rename="c.renameMachine"
+              :on-delete="async (id) => { await c.deleteMachine(id); selectedMachine = null; }"
+              :on-create-agent="() => { newAgentMachineId = machine!.id; showNewAgent = true; }"
+            />
             <template v-else>
               <PaneHeader title="Computers" :connected="c.connected" :on-logout="onLogout" />
               <Placeholder title="Select a computer" note="Click a computer on the left to view its info and agents, or click + to add one" />
@@ -259,6 +268,7 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
               :on-send="c.send" :on-send-files="c.sendWithFiles"
               :on-open-thread="openThread"
               :on-toggle-reaction="c.toggleReaction" :on-toggle-save="c.toggleSave"
+              :on-set-status="c.setTaskStatus"
             />
             <TaskBoard
               v-else-if="tab === 'tasks'"
@@ -276,21 +286,22 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
 
       <Pane v-if="threadOpen && threadParent" :size="threadSize" min-size="16" max-size="50" class="pane">
         <ThreadPanel
-          :channel-name="channelName" :parent="threadParent" :replies="threadReplies"
+          :channel-name="channelName" :parent="threadParent" :replies="threadReplies" :task="threadTask"
           :channels="c.channels" :member-handles="memberHandles" :mention-members="mentionMembers" :agent-status="c.agentStatus"
           :on-channel="jumpChannel" :on-task="jumpTask"
           :on-reply="(content) => c.reply(threadParent!.id, content)"
           :on-reply-files="(content, files) => c.replyWithFiles(threadParent!.id, content, files)"
           :on-close="() => threadId = null"
+          :on-set-status="c.setTaskStatus"
         />
       </Pane>
     </Splitpanes>
 
     <NewAgentDialog
       v-if="showNewAgent"
-      :machines="c.machines" :on-create="c.createAgent"
-      :on-close="() => showNewAgent = false"
-      :on-created="(handle) => { showNewAgent = false; selectedAgent = handle; }"
+      :machines="c.machines" :preselected-machine-id="newAgentMachineId ?? undefined" :on-create="c.createAgent"
+      :on-close="() => { showNewAgent = false; newAgentMachineId = null; }"
+      :on-created="(handle) => { showNewAgent = false; newAgentMachineId = null; selectedAgent = handle; machineAgentsTick++; }"
     />
 
     <SettingsDialog

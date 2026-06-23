@@ -108,3 +108,45 @@ describe("MachineService 连接命令里的 server 地址解析优先级", () =>
     expect(await svc.regenerateCommand("ws1", "nope")).toBeNull();
   });
 });
+
+describe("MachineService.delete(删除机器 + 解绑其上 agent)", () => {
+  let repos: MemoryRepos;
+  let svc: MachineService;
+
+  beforeEach(() => {
+    repos = createMemoryRepos();
+    let n = 0;
+    const mint = async () => `sk_machine_${"deadbeef".repeat(8)}_${++n}`;
+    svc = new MachineService(repos.machines, mint);
+  });
+
+  it("删除存在的机器 → 返回 true、机器消失", async () => {
+    const { machine } = await svc.create("ws1", "box");
+    expect(await svc.delete("ws1", machine.id)).toBe(true);
+    expect(await svc.get("ws1", machine.id)).toBeNull();
+  });
+
+  it("删除机器只解绑其上 agent(machineId→null),不删 agent 本身", async () => {
+    const { machine } = await svc.create("ws1", "box");
+    await repos.agents.create("ws1", { handle: "bot", displayName: "Bot", runtime: "claude", machineId: machine.id });
+    await repos.agents.create("ws1", { handle: "free", displayName: "Free", runtime: "claude" }); // 未绑机器,不应受影响
+
+    expect(await svc.delete("ws1", machine.id)).toBe(true);
+
+    const bot = await repos.agents.get("ws1", "bot");
+    expect(bot).not.toBeNull(); // agent 仍在
+    expect(bot?.machineId).toBeNull(); // 已解绑
+    const free = await repos.agents.get("ws1", "free");
+    expect(free?.machineId).toBeNull();
+  });
+
+  it("删除不存在的机器 → 返回 false(路由据此回 404)", async () => {
+    expect(await svc.delete("ws1", "nope")).toBe(false);
+  });
+
+  it("删除是 workspace 隔离的:不能删别的 workspace 的机器", async () => {
+    const { machine } = await svc.create("ws1", "box");
+    expect(await svc.delete("ws2", machine.id)).toBe(false);
+    expect(await svc.get("ws1", machine.id)).not.toBeNull();
+  });
+});

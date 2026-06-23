@@ -3,6 +3,7 @@
  */
 
 import { createInterface } from "node:readline";
+import { writeFile } from "node:fs/promises";
 import { delimiter, join } from "node:path";
 import type { DaemonConfig } from "./config.js";
 import { mintAgentToken } from "./token.js";
@@ -11,11 +12,16 @@ import { buildSystemPrompt, buildWakePrompt } from "./prompt.js";
 import { spawnClaude } from "./runtimes/claude.js";
 import { normalizeEvent, parseLine, type Activity } from "./normalize.js";
 
+// 注入提示词的 MEMORY.md 上限:只喂索引/角色,避免把膨胀的记忆全塞进上下文。
+const MEMORY_INJECT_CAP = 6000;
+
 export interface RunAgentInput {
   readonly handle: string;
   readonly channelId: string;
   readonly displayName?: string;
   readonly wake?: string;
+  /** 任务键(线程锚点/频道):隔离 cwd + per-task work-log。 */
+  readonly taskKey?: string;
 }
 
 export interface RunAgentResult {
@@ -41,20 +47,26 @@ export async function runAgent(
     input.displayName,
   );
 
-  // 2) 准备 workspace + 注入 crew wrapper + 系统提示词
-  // (agent 自行读 cwd 的 MEMORY.md,故系统提示不内嵌记忆)
-  const systemPrompt = buildSystemPrompt({
-    handle: input.handle,
-    channelId: input.channelId,
-    agentId: cred.agentId,
-    workspaceDir: join(config.agentsRoot, input.handle),
-  });
+  // 2) 准备 workspace(共享 home + 本任务隔离 cwd + per-task work-log)。
+  //    先 prepare 拿到 memory/workLog,再 build 系统提示词(注入记忆索引)写入。
   const ws = await prepareWorkspace({
     agentsRoot: config.agentsRoot,
     handle: input.handle,
     cliPath: config.cliPath,
-    systemPrompt,
+    ...(input.taskKey ? { taskKey: input.taskKey } : {}),
   });
+  const systemPrompt = buildSystemPrompt({
+    handle: input.handle,
+    channelId: input.channelId,
+    agentId: cred.agentId,
+    homeDir: ws.dir,
+    // 只注入 MEMORY.md 的索引/角色部分(截断),避免上下文膨胀;明细让 agent 按需读 notes/。
+    memory: ws.memory.length > MEMORY_INJECT_CAP
+      ? ws.memory.slice(0, MEMORY_INJECT_CAP) + "\n…(MEMORY.md 过长已截断,详情用 Read 读 $CREW_HOME/MEMORY.md 或 notes/)"
+      : ws.memory,
+    workLog: ws.workLog,
+  });
+  await writeFile(ws.systemPromptPath, systemPrompt, "utf8");
 
   // 3) spawn runtime,注入 PATH(crew wrapper)、凭证 env、以及 agent 运行时配置
   //    provider=custom → BYOC(ANTHROPIC_BASE_URL/API_KEY);reasoning → 思考预算;model → --model
@@ -62,7 +74,7 @@ export async function runAgent(
   const REASONING_TOKENS: Record<string, string> = { low: "4000", medium: "10000", high: "31999" };
   const child = spawnClaude({
     bin: config.runtimeBin,
-    cwd: ws.dir,
+    cwd: ws.runDir, // 本任务隔离工作目录(并行运行互不干扰)
     systemPromptPath: ws.systemPromptPath,
     wakePrompt: input.wake ?? buildWakePrompt(input.channelId),
     dangerous: config.dangerous,
@@ -73,6 +85,9 @@ export async function runAgent(
       CREW_SERVER_URL: config.serverUrl,
       CREW_TOKEN: cred.token,
       CREW_CHANNEL: input.channelId,
+      // 共享持久记忆 home(MEMORY.md/notes 在此;cwd 是本任务隔离目录)+ 本任务 work-log 路径
+      CREW_HOME: ws.dir,
+      CREW_TASK_LOG: ws.workLogPath,
       // per-agent 凭证隔离:XDG 指向本 agent 独立目录(gh/gcloud 等 CLI 的 token 不互相串)。
       // 不覆盖 HOME(否则会破坏 claude 自身的 ~/.claude 鉴权);常用 CLI 也单独点名隔离。
       XDG_CONFIG_HOME: join(ws.homeDir, ".config"),

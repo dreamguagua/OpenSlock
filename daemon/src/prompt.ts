@@ -11,7 +11,12 @@ export interface PromptContext {
   readonly channelId: string;
   readonly agentId?: string;
   readonly workspaceDir?: string;
+  /** 共享持久记忆 home(MEMORY.md/notes 所在;cwd 是本任务隔离目录)。 */
+  readonly homeDir?: string;
+  /** 注入的 MEMORY.md(已截断的索引/角色)。 */
   readonly memory?: string;
+  /** 本任务当前 work-log 内容(让 agent 续上进度)。 */
+  readonly workLog?: string;
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
@@ -22,7 +27,16 @@ export function buildSystemPrompt(ctx: PromptContext): string {
 
 ## 当前运行时上下文(由 Crew 注入,权威)
 - Handle: ${ctx.handle}${ctx.agentId ? `\n- Agent ID: ${ctx.agentId}` : ""}
-- 你被唤醒处理的频道: ${ctx.channelId}${ctx.workspaceDir ? `\n- Workspace: ${ctx.workspaceDir}` : ""}
+- 你被唤醒处理的频道: ${ctx.channelId}
+- **你的 cwd 是本任务的隔离工作目录**(代码检出/构建/草稿都放这里;你可能同时有多个并行运行,各自 cwd 独立,互不干扰)。
+- **共享持久记忆 home: \`$CREW_HOME\`**${ctx.homeDir ? `(${ctx.homeDir})` : ""}——MEMORY.md 与 notes/ 在这里,跨你的所有任务共享。
+
+## 并行与记忆(CRITICAL — 防冲突 + 防上下文膨胀)
+你**可能同时在处理多个任务**(你自己的多个并行进程)。为避免互相覆盖、并保持上下文精简,严格遵守:
+- **只写两处**:① 本任务的隔离 cwd(代码/草稿);② 本任务的工作日志 **\`$CREW_TASK_LOG\`**(每任务一份,别人不会碰)。在工作日志里记:当前阶段 / 下一步 / 卡在谁 / 关键结论(每条尽量 ≤3 行)。
+- **任务进行中不要改 \`$CREW_HOME/MEMORY.md\` 或 notes/**(那是共享文件,多个并行运行同时写会冲突)。这些只读参考;沉淀经验留到任务关闭时由系统触发的收尾来做。
+- **跨任务协调看实时清单**:用 \`crew task list --mine\` 查你当前所有任务及其状态(谁在排队、谁在评审)。例:你一次只能测一个页面时,据此判断"正在测 #1、#2 排队",在 #2 的工作日志里标注"等 #1 完成"。
+- 需要更多背景时再 \`Read $CREW_HOME/notes/<topic>.md\`;不要一次把所有笔记读进上下文。
 
 ## 通信 —— 只能用 crew CLI
 所有 chat / task 操作必须经 \`crew\` CLI(daemon 已把它注入你的 PATH)。仅可使用以下命令:
@@ -79,20 +93,16 @@ CRITICAL 规则:
 ## 沟通风格
 用户看不到你的内部推理,所以:收到任务先确认并简述计划;多步工作发简短进度("正在做 2/3…");完成后总结结果。每条一两句,别刷屏。
 
-## Workspace 与分层记忆协议(CRITICAL)
-cwd 是你持久、归你所有的 workspace,创建的文件跨会话保留。记忆采用"索引 + 按需"两层,严格遵守:
+## Workspace 与分层记忆(CRITICAL — 索引+按需,配合上面的并行规则)
+你的持久记忆在 \`$CREW_HOME\`(跨你所有任务共享),分三层:
+1. **MEMORY.md = 索引 + 角色**:指向你全部知识的目录。系统每次已把它(截断索引版)注入到本提示词末尾,**通常不必再去读整文件**;要某领域明细时再 \`Read $CREW_HOME/notes/<file>.md\`。别一次把所有 notes 读进上下文。
+2. **notes/<domain>.md = 明细**:领域知识、用户偏好、频道说明、经验教训(\`notes/lessons.md\`)。**任务进行中只读不写**(多个并行运行同时写会冲突)。
+3. **本任务 work-log = \`$CREW_TASK_LOG\`**:每任务一份(别的运行不会碰),记当前阶段/下一步/卡点/关键结论。系统已把它的当前内容注入末尾让你续上;有进展就更新它——这是你**唯一**该在任务中持续写的记忆文件。
 
-1. **启动先读 MEMORY.md,再按需读 notes/**:每次启动(含上下文压缩后)的第一个动作是读 cwd 的 \`MEMORY.md\`——它是指向你全部知识的索引。只有当处理当前这轮确实需要某领域明细时,才用 Read 去读对应的 \`notes/<file>.md\`;**不要**一次性把所有笔记读进上下文(那会浪费 token 且很快被压缩掉)。
+**沉淀与瘦身由系统触发,不要平时做**:任务被改为 done/closed 时,系统会单独唤醒你收尾——那时才把可复用经验从 work-log 提炼进 \`notes/lessons.md\`、更新 MEMORY.md 索引、并清掉该任务的 work-log。平时别动 MEMORY.md/notes,既防并行冲突,也防 MEMORY.md 膨胀。
 
-2. **MEMORY.md 只放索引 + Now,明细沉到 notes/**:保持 MEMORY.md 精简、可一眼扫完——身份/目标/原则、一个指向明细的 \`## Index\`、以及记录"在干什么"的 \`## Now\`。具体的频道说明、用户偏好、领域知识、工作日志等写进 \`notes/<domain>.md\`(如 \`notes/channels.md\`、\`notes/user-preferences.md\`、\`notes/work-log.md\`)。**每新增一个 note,必须在 Index 里加一行链接**,否则将来的你找不到它。
-
-3. **维护闭环,保证 MEMORY.md 自足可恢复**:
-   - 长任务**开工前**,先在 \`## Now\` 写一条(目标 / 当前进度 / 下一步),这样中途被压缩或休眠也能续上。
-   - **完成工作后**,把明细更新进对应 \`notes/\`,并回写 MEMORY.md 的索引与 Now(删掉已完成的、留下进行中的)。
-   - **自足判据(随时自查)**:只读 MEMORY.md 这一个文件,就应能回答"我是谁、我知道什么(及去哪个 note 读)、我正在做什么、还欠谁什么"。**答不全就立刻补全 MEMORY.md**——这就是"自足/可恢复"的硬标准。
-
-**为什么(CRITICAL)**:你的上下文会被周期性压缩,届时对话历史丢失,但 MEMORY.md 一定会被重读。所以你的恢复能力不靠"记住对话",而靠 MEMORY.md 始终自足 + notes 可按需重新拉取。
-${ctx.memory ? `\n## 你的 MEMORY.md 当前内容\n${ctx.memory}` : ""}`;
+**为什么(CRITICAL)**:上下文会被周期压缩;你的恢复力来自——注入的 MEMORY.md 索引(始终精简)+ 本任务 work-log + 按需读 notes,而**不是**把一切堆进 MEMORY.md。
+${ctx.memory ? `\n## [注入] 你的 MEMORY.md(索引,只读参考)\n${ctx.memory}` : ""}${ctx.workLog ? `\n## [注入] 本任务 work-log(续上进度;更新写到 $CREW_TASK_LOG)\n${ctx.workLog}` : ""}`;
 }
 
 /**

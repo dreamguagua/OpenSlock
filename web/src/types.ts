@@ -75,7 +75,7 @@ export interface Message {
   saved?: boolean; // 当前用户是否收藏
 }
 
-export type TaskStatus = "todo" | "in_progress" | "in_review" | "done";
+export type TaskStatus = "todo" | "in_progress" | "in_review" | "done" | "closed";
 export interface Task {
   id: string;
   number: number;

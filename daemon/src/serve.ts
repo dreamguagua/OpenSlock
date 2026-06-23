@@ -48,7 +48,29 @@ export function serve(config: DaemonConfig, opts: ServeOptions = {}): { stop: ()
   let ws: WebSocket | null = null;
   let backoff = 1000;
   const maxBackoff = opts.maxBackoffMs ?? 30_000;
-  const running = new Set<string>(); // 防止同一 agent 并发重复唤醒
+
+  // 并行调度:同一 agent 可并行处理多个【不同任务】(线程/频道),每任务隔离 cwd+work-log。
+  // - running:正在跑的「agent:任务」去重键(同一任务重复唤醒才跳过)。
+  // - agentSlots:每 agent 当前并行数;超过 MAX_PARALLEL 的进 FIFO 队列(不丢)。
+  const MAX_PARALLEL = Number(process.env.CREW_MAX_PARALLEL) || 4;
+  const running = new Set<string>();
+  const agentSlots = new Map<string, number>();
+  const waitQueue = new Map<string, Array<() => void>>();
+  const acquireSlot = async (handle: string): Promise<void> => {
+    const n = agentSlots.get(handle) ?? 0;
+    if (n < MAX_PARALLEL) { agentSlots.set(handle, n + 1); return; }
+    await new Promise<void>((resolve) => {
+      const q = waitQueue.get(handle) ?? [];
+      q.push(resolve);
+      waitQueue.set(handle, q);
+    });
+    agentSlots.set(handle, (agentSlots.get(handle) ?? 0) + 1);
+  };
+  const releaseSlot = (handle: string): void => {
+    agentSlots.set(handle, Math.max(0, (agentSlots.get(handle) ?? 1) - 1));
+    const q = waitQueue.get(handle);
+    if (q && q.length) (q.shift())!();
+  };
 
   const log = (s: string) => process.stdout.write(s + "\n");
 
@@ -121,14 +143,17 @@ export function serve(config: DaemonConfig, opts: ServeOptions = {}): { stop: ()
 
       if (msg.type !== "agent:start") return; // ready/error 等忽略
 
-      const key = `${msg.agentHandle}:${msg.channelId}`;
+      // 任务键 = 线程锚点(≈任务)优先,否则频道。同一 agent 的不同任务可并行;同一任务重复唤醒才跳过。
+      const threadId = msg.wake?.threadId;
+      const taskKey = threadId ?? msg.channelId;
+      const key = `${msg.agentHandle}:${taskKey}`;
       if (running.has(key)) {
-        log(`↩︎ 跳过(已在运行): ${key}`);
+        log(`↩︎ 跳过(该任务已在运行): ${key}`);
         return;
       }
       running.add(key);
-      // 线程上下文:触发消息若是某条消息的线程回复,则要求 agent 在该线程内回复
-      const threadId = msg.wake?.threadId;
+      // 并行槽:同 agent 超过 MAX_PARALLEL 个任务时在此排队(不丢),有空位再跑。
+      await acquireSlot(msg.agentHandle);
       const threadCode = threadId ? threadId.slice(0, 8) : null;
       const from = msg.wake?.senderHandle ?? "?";
       const incoming = msg.wake?.content ?? "";
@@ -185,6 +210,7 @@ export function serve(config: DaemonConfig, opts: ServeOptions = {}): { stop: ()
         await runAgent(config, {
           handle: msg.agentHandle,
           channelId: msg.channelId,
+          taskKey, // 每任务隔离 cwd + work-log(并行不冲突)
           ...(msg.wake?.content ? { wake: `你被唤醒(${msg.reason}): ${msg.wake.content}\n用 crew message read --channel ${msg.channelId} 读频道后按需处理。${reasonHint}${ackHint}${threadHint}${attHint}` } : {}),
         }, reportActivity);
         reportActivity({ kind: "done", label: "本轮结束" });
@@ -193,6 +219,7 @@ export function serve(config: DaemonConfig, opts: ServeOptions = {}): { stop: ()
         log(`❌ runAgent 失败: ${(e as Error).message}`);
       } finally {
         running.delete(key);
+        releaseSlot(msg.agentHandle);
       }
     });
 

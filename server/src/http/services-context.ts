@@ -183,6 +183,8 @@ export interface AppServices {
     /** 为已有机器重新签发 token + 连接命令 (Generate Connect Command)。 */
     regenerateCommand(ws: string, id: string, requestOrigin?: string): Promise<{ token: string; connectCommand: string } | null>;
     rename(ws: string, id: string, name: string): Promise<MachineRow | null>;
+    /** 删除机器(解绑其上 agent);机器不存在返回 false → 路由回 404。 */
+    delete(ws: string, id: string): Promise<boolean>;
     setStatus(ws: string, id: string, status: "online" | "offline"): Promise<void>;
     updateInfo(ws: string, id: string, patch: MachineInfoPatch): Promise<void>;
   };
@@ -347,6 +349,7 @@ export function createServices(
       create: (ws, name, requestOrigin) => machineSvc.create(ws, name, requestOrigin),
       regenerateCommand: (ws, id, requestOrigin) => machineSvc.regenerateCommand(ws, id, requestOrigin),
       rename: (ws, id, name) => machineSvc.rename(ws, id, name),
+      delete: (ws, id) => machineSvc.delete(ws, id),
       setStatus: (ws, id, status) => machineSvc.setStatus(ws, id, status),
       updateInfo: (ws, id, patch) => machineSvc.updateInfo(ws, id, patch),
     },

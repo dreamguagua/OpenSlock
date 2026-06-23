@@ -112,17 +112,38 @@ describe("TaskService.claim", () => {
     expect((await svc.updateStatus(WS, agentA, task.id, "done")).status).toBe("done");
   });
 
-  it("updateStatus:非 assignee → FORBIDDEN", async () => {
+  it("updateStatus:非 assignee(agent)→ FORBIDDEN", async () => {
     const { task } = await svc.create(WS, agentA, { channelId: "c1", title: "t" });
     await svc.claim(WS, agentA, task.id);
     await expectCode(svc.updateStatus(WS, agentB, task.id, "done"), "FORBIDDEN");
   });
 
-  it("updateStatus:done 后再改 → CONFLICT(终态)", async () => {
+  it("updateStatus:human 可改他人(agent)认领的任务(回归:不再误报 concurrent change)", async () => {
+    const human: Actor = { type: "human", id: "alice" };
+    const { task } = await svc.create(WS, agentA, { channelId: "c1", title: "t" });
+    await svc.claim(WS, agentA, task.id); // 归 agentA(assignee≠发起的 human)
+    // 修复前:repo CAS 用「assignee==发起人」做条件 → human≠agentA → 误抛 CONFLICT。
+    // 修复后:repo 用 service 读到的 assignee 做乐观并发,human 协调者放行。
+    const out = await svc.updateStatus(WS, human, task.id, "in_review");
+    expect(out.status).toBe("in_review");
+    expect(out.assignee).toMatchObject(agentA); // 改状态不改 assignee
+  });
+
+  it("updateStatus:human 可改无人认领(unassigned)任务的状态", async () => {
+    const human: Actor = { type: "human", id: "alice" };
+    const { task } = await svc.create(WS, agentA, { channelId: "c1", title: "t" });
+    // 未 claim,assignee=null。修复后 expectedAssignee=null 的 CAS 命中 → 放行。
+    const out = await svc.updateStatus(WS, human, task.id, "in_progress");
+    expect(out.status).toBe("in_progress");
+    expect(out.assignee).toBeNull();
+  });
+
+  it("updateStatus:done 可被重新打开(无终态)", async () => {
     const { task } = await svc.create(WS, agentA, { channelId: "c1", title: "t" });
     await svc.claim(WS, agentA, task.id);
     await svc.updateStatus(WS, agentA, task.id, "done");
-    await expectCode(svc.updateStatus(WS, agentA, task.id, "todo"), "CONFLICT");
+    const reopened = await svc.updateStatus(WS, agentA, task.id, "in_review");
+    expect(reopened.status).toBe("in_review");
   });
 
   it("updateStatus:非法状态 → VALIDATION", async () => {

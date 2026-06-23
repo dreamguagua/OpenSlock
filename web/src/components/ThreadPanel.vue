@@ -3,8 +3,9 @@
 
 import { ref, watch } from "vue";
 import { Paperclip } from "lucide-vue-next";
-import type { AgentStatusInfo, Channel, Member, Message } from "../types.js";
+import type { AgentStatusInfo, Channel, Member, Message, Task } from "../types.js";
 import Avatar from "./Avatar.vue";
+import TaskChip from "./TaskChip.vue";
 import MentionTextarea from "./MentionTextarea.vue";
 import MessageText from "./MessageText.vue";
 import AttachmentList from "./AttachmentList.vue";
@@ -15,6 +16,7 @@ const props = defineProps<{
   channelName: string;
   parent: Message;
   replies: Message[];
+  task: Task | null;
   channels: Channel[];
   memberHandles: Set<string>;
   mentionMembers: Member[];
@@ -24,6 +26,7 @@ const props = defineProps<{
   onReply: (content: string) => Promise<void>;
   onReplyFiles: (content: string, files: File[]) => Promise<void>;
   onClose: () => void;
+  onSetStatus: (taskId: string, status: string) => Promise<void>;
 }>();
 
 const endRef = ref<HTMLDivElement | null>(null);
@@ -60,7 +63,10 @@ const onFileChange = (e: Event) => {
 <template>
   <aside class="thread" data-testid="thread-panel">
     <div class="thread-head">
-      <div><b>Thread</b> <span class="meta">— #{{ channelName }}</span></div>
+      <div class="thread-head-title">
+        <b>Thread</b> <span class="meta">— #{{ channelName }}</span>
+        <TaskChip v-if="task" :task="task" :agent-status="agentStatus" :on-open="() => {}" :on-set-status="onSetStatus" />
+      </div>
       <button class="nb-btn" data-testid="thread-close" @click="onClose">×</button>
     </div>
     <div class="thread-body">

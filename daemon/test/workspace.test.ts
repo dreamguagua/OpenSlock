@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, rm, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { prepareWorkspace } from "../src/workspace.js";
+import { prepareWorkspace, safeKey } from "../src/workspace.js";
 import { buildClaudeArgs } from "../src/runtimes/claude.js";
 
 let roots: string[] = [];
@@ -41,6 +41,34 @@ describe("prepareWorkspace", () => {
     expect(ws.homeDir).toBe(join(agentsRoot, "cindy", ".home"));
     expect((await stat(join(ws.homeDir, ".config"))).isDirectory()).toBe(true);
     expect((await stat(join(ws.homeDir, ".local", "share"))).isDirectory()).toBe(true);
+  });
+
+  it("taskKey → 每任务隔离 cwd(runDir)+ per-task work-log,不同任务互不干扰", async () => {
+    const agentsRoot = await tmpRoot();
+    const a = await prepareWorkspace({ agentsRoot, handle: "qa", cliPath: "/x", taskKey: "thread-aaa" });
+    const b = await prepareWorkspace({ agentsRoot, handle: "qa", cliPath: "/x", taskKey: "thread-bbb" });
+    // 两个任务的 cwd 不同(并行不冲突),但共享同一 home/MEMORY
+    expect(a.runDir).not.toBe(b.runDir);
+    expect(a.runDir).toBe(join(agentsRoot, "qa", "tasks", "thread-aaa"));
+    expect(a.dir).toBe(b.dir); // 共享 home
+    // per-task work-log 各自独立
+    expect(a.workLogPath).toBe(join(a.runDir, "work-log.md"));
+    expect(a.workLogPath).not.toBe(b.workLogPath);
+    expect((await stat(a.runDir)).isDirectory()).toBe(true);
+    // 写入 a 的 work-log,b 读不到(隔离)
+    const { writeFile } = await import("node:fs/promises");
+    await writeFile(a.workLogPath, "task A 进度", "utf8");
+    const b2 = await prepareWorkspace({ agentsRoot, handle: "qa", cliPath: "/x", taskKey: "thread-bbb" });
+    expect(b2.workLog).toBe(""); // b 任务的 work-log 仍为空
+    const a2 = await prepareWorkspace({ agentsRoot, handle: "qa", cliPath: "/x", taskKey: "thread-aaa" });
+    expect(a2.workLog).toBe("task A 进度"); // a 任务能续上
+  });
+
+  it("safeKey:去掉路径分隔符/危险字符,防路径穿越", () => {
+    expect(safeKey("../../etc/passwd")).not.toContain("/"); // 无分隔符 → 不能穿越目录
+    expect(safeKey("../../etc/passwd").startsWith(".")).toBe(false); // 不以点开头
+    expect(safeKey("a/b c:d")).toBe("a_b_c_d");
+    expect(safeKey("")).toBe("default");
   });
 
   it("保留已存在的 MEMORY.md (不覆盖 agent 记忆)", async () => {

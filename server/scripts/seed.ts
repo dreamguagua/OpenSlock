@@ -73,7 +73,7 @@ async function main() {
   // 建任务 #160 + system 消息
   const [task160] = await withTenant(WS, async (tx) =>
     tx.insert(s.task).values({
-      workspaceId: WS, channelId: CH, number: 160, title: "Fix login bug",
+      workspaceId: WS, channelId: CH, number: 160, title: "修登录 bug",
       messageId: m1.id, status: "todo", anchoredOnSystemMessage: false,
     }).returning(),
   );

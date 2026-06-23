@@ -25,6 +25,12 @@ export function actorEquals(a: Actor, b: Actor): boolean {
   return a.type === b.type && a.id === b.id;
 }
 
+/** 可空版相等:两者都为 null 算相等;一空一非空算不等。用于乐观并发 CAS 比对 assignee。 */
+export function actorEqualsNullable(a: Actor | null, b: Actor | null): boolean {
+  if (a === null || b === null) return a === b;
+  return actorEquals(a, b);
+}
+
 /** system 不是可寻址的协作主体:不能被指派任务、不应被 @mention 唤醒。 */
 export function isAssignable(actor: Actor): boolean {
   return actor.type === "human" || actor.type === "agent";

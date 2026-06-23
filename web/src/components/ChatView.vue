@@ -36,6 +36,7 @@ const props = defineProps<{
   onOpenThread: (m: Message) => void;
   onToggleReaction: (messageId: string, emoji: string, mine: boolean) => void;
   onToggleSave: (messageId: string, saved: boolean) => void;
+  onSetStatus: (taskId: string, status: string) => Promise<void>;
 }>();
 
 // 活动条只显示当前频道的活动(activity 是全局收集的,这里按 channelId 过滤)
@@ -171,7 +172,7 @@ const placeholder = computed(() =>
           <AttachmentList :attachments="m.attachments ?? []" />
           <ReactionBar :reactions="m.reactions ?? []" :onToggle="(emoji, mine) => onToggleReaction(m.id, emoji, mine)" />
           <div v-if="taskOf(m) || rOf(m)" class="msg-foot">
-            <TaskChip v-if="taskOf(m)" :task="(taskOf(m) as Task)" :onOpen="() => openThread(m)" />
+            <TaskChip v-if="taskOf(m)" :task="(taskOf(m) as Task)" :agent-status="agentStatus" :onOpen="() => openThread(m)" :on-set-status="onSetStatus" />
             <button
               v-if="rOf(m)"
               :class="`thread-summary ${activeThreadId === m.id ? 'active' : ''}`"

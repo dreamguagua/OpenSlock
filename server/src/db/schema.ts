@@ -32,6 +32,7 @@ export const taskStatusEnum = pgEnum("task_status", [
   "in_progress",
   "in_review",
   "done",
+  "closed", // 不处理直接关闭(不占看板列;可重新打开)
 ]);
 
 const id = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);

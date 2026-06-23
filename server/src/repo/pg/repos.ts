@@ -583,20 +583,22 @@ export const tasks: TaskRepo = {
     });
   },
 
-  async updateStatus(ws, taskId, actor: Actor, nextStatus: TaskStatus): Promise<TaskMutationOutcome> {
+  async updateStatus(ws, taskId, expectedAssignee: Actor | null, nextStatus: TaskStatus): Promise<TaskMutationOutcome> {
     return withTenant(ws, async (tx) => {
       const [cur] = await tx.select().from(s.task).where(eq(s.task.id, taskId));
       if (!cur) return { kind: "not_found" };
-      // 原子:仅当 assignee 仍是 actor 且未 done 时改状态
+      // 乐观并发:仅当 assignee 仍等于 service 读到的期望值(未被并发改派)时改状态。
+      // 无终态限制——done/closed 可被重新打开。权限由 service 层 decideStatusUpdate 判定。
+      const assigneeCond = expectedAssignee
+        ? and(eq(s.task.assigneeType, expectedAssignee.type), eq(s.task.assigneeId, expectedAssignee.id))
+        : and(isNull(s.task.assigneeType), isNull(s.task.assigneeId));
       const updated = await tx
         .update(s.task)
         .set({ status: nextStatus, updatedAt: sql`now()` })
         .where(
           and(
             eq(s.task.id, taskId),
-            eq(s.task.assigneeType, actor.type),
-            eq(s.task.assigneeId, actor.id),
-            ne(s.task.status, "done"),
+            assigneeCond,
           ),
         )
         .returning();
@@ -851,6 +853,13 @@ export const machines: MachineRepo = {
       const [row] = await tx.update(s.machine).set({ name })
         .where(eq(s.machine.id, id)).returning();
       return row ? toMachineRow(row) : null;
+    });
+  },
+  async delete(ws, id) {
+    // agent.machineId 外键为 onDelete:set null,删机器自动解绑 agent(不删 agent)。
+    return withTenant(ws, async (tx) => {
+      const rows = await tx.delete(s.machine).where(eq(s.machine.id, id)).returning({ id: s.machine.id });
+      return rows.length > 0;
     });
   },
   async setTokenPrefix(ws, id, prefix) {

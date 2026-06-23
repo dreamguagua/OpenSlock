@@ -168,6 +168,8 @@ export const api = {
     req<CreateMachineResult>("POST", "/api/machines", name ? { name } : {}),
   renameMachine: (id: string, name: string) =>
     req<Machine>("PATCH", `/api/machines/${encodeURIComponent(id)}`, { name }),
+  deleteMachine: (id: string) =>
+    req<{ deleted: boolean }>("DELETE", `/api/machines/${encodeURIComponent(id)}`),
   connectCommand: (id: string) =>
     req<{ token: string; connectCommand: string }>("POST", `/api/machines/${encodeURIComponent(id)}/connect-command`),
 };

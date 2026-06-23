@@ -135,6 +135,11 @@ export class MachineService {
     return this.repo.rename(ws, id, name.trim() || DEFAULT_NAME);
   }
 
+  /** 删除机器(解绑其上 agent)。机器不存在返回 false → 路由回 404。 */
+  delete(ws: string, id: string): Promise<boolean> {
+    return this.repo.delete(ws, id);
+  }
+
   setStatus(ws: string, id: string, status: "online" | "offline"): Promise<void> {
     return this.repo.setStatus(ws, id, status);
   }

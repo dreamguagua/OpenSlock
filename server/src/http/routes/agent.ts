@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { AppServices } from "../services-context.js";
 import { ok, toHttpError } from "../envelope.js";
 import { principalOf, requireTier } from "../auth.js";
+import { maybePruneWorklog } from "../worklog-prune.js";
 import { DomainError } from "../../domain/errors.js";
 import { toDTO as attachmentDto } from "../../services/attachment.service.js";
 
@@ -413,6 +414,7 @@ export async function registerAgentRoutes(
       const b = z.object({ status: z.string().min(1) }).parse(req.body);
       const task = await svc.tasks.updateStatus(p.workspaceId, p.actor, taskId, b.status);
       svc.emit(p.workspaceId, { type: "task.updated", taskId });
+      maybePruneWorklog(svc, p.workspaceId, task);
       return ok(task);
     } catch (e) {
       const { status, body } = toHttpError(e);

@@ -10,7 +10,7 @@
  */
 
 import type { Actor } from "../../domain/actor.js";
-import { actorEquals, formatActor } from "../../domain/actor.js";
+import { actorEquals, actorEqualsNullable, formatActor } from "../../domain/actor.js";
 import { decideClaim, type ClaimResult, type TaskStatus } from "../../domain/claim.js";
 import { nextSeq } from "../../domain/seq.js";
 import { advanceSeenCursor } from "../../domain/freshness.js";
@@ -453,17 +453,15 @@ export class MemoryStore {
   updateTaskStatus(
     workspaceId: string,
     taskId: string,
-    actor: Actor,
+    expectedAssignee: Actor | null,
     nextStatus: TaskStatus,
   ): TaskMutationOutcome {
     const key = `${workspaceId}:${taskId}`;
     const task = this.tasks.get(key);
     if (!task) return { kind: "not_found" };
-    if (
-      task.status === "done" ||
-      !task.assignee ||
-      !actorEquals(task.assignee, actor)
-    ) {
+    // 乐观并发:assignee 必须仍等于 service 读到的期望值(未被并发改派)。
+    // 无终态限制——done/closed 可被重新打开。权限由 service 层判定,这里不再校验发起人。
+    if (!actorEqualsNullable(task.assignee, expectedAssignee)) {
       return { kind: "conflict" };
     }
     const updated: TaskRow = { ...task, status: nextStatus };
@@ -654,6 +652,16 @@ export class MemoryStore {
     if (!m) return null;
     m.name = name;
     return this.machineRow(m);
+  }
+  deleteMachine(workspaceId: string, id: string): boolean {
+    const i = this.machines.findIndex((x) => x.workspaceId === workspaceId && x.id === id);
+    if (i < 0) return false;
+    // 解绑该机器上的所有 agent(对齐 PG 的 FK onDelete:set null:删机器只解绑、不删 agent)
+    for (const a of this.agents) {
+      if (a.workspaceId === workspaceId && a.machineId === id) a.machineId = null;
+    }
+    this.machines.splice(i, 1);
+    return true;
   }
   setMachineTokenPrefix(workspaceId: string, id: string, prefix: string): void {
     const m = this.machines.find((x) => x.workspaceId === workspaceId && x.id === id);
@@ -949,8 +957,8 @@ export function createMemoryRepos(store: MemoryStore = new MemoryStore()): Memor
       list: async (ws, filter) => store.listTasks(ws, filter),
       create: async (ws, t) => store.createTask(ws, t),
       unclaim: async (ws, id, actor, next) => store.unclaimTask(ws, id, actor, next),
-      updateStatus: async (ws, id, actor, next) =>
-        store.updateTaskStatus(ws, id, actor, next),
+      updateStatus: async (ws, id, expectedAssignee, next) =>
+        store.updateTaskStatus(ws, id, expectedAssignee, next),
       assign: async (ws, id, assignee) => store.assignTask(ws, id, assignee),
       staleOrphansAcrossWorkspaces: async (_olderThan, limit) =>
         store.staleOrphans().slice(0, limit),
@@ -1001,6 +1009,7 @@ export function createMemoryRepos(store: MemoryStore = new MemoryStore()): Memor
       get: async (ws, id) => store.getMachine(ws, id),
       create: async (ws, m) => store.createMachine(ws, m),
       rename: async (ws, id, name) => store.renameMachine(ws, id, name),
+      delete: async (ws, id) => store.deleteMachine(ws, id),
       setTokenPrefix: async (ws, id, prefix) => store.setMachineTokenPrefix(ws, id, prefix),
       setStatus: async (ws, id, status) => store.setMachineStatus(ws, id, status),
       resetAllOffline: async () => store.resetAllMachinesOffline(),

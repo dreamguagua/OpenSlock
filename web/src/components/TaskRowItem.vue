@@ -9,6 +9,7 @@ const STATUSES: ReadonlyArray<{ value: string; label: string }> = [
   { value: "in_progress", label: "In Progress" },
   { value: "in_review", label: "In Review" },
   { value: "done", label: "Done" },
+  { value: "closed", label: "Closed" },
 ];
 
 const props = defineProps<{

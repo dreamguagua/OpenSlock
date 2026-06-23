@@ -18,6 +18,17 @@ export interface PreparedWorkspace {
   readonly memory: string;
   /** 每个 agent 独立的 XDG 配置根(<dir>/.home),隔离第三方 CLI 凭证(gh/gcloud 等)。 */
   readonly homeDir: string;
+  /** 本次运行的隔离工作目录(<dir>/tasks/<taskKey>/);并行运行互不干扰。无 taskKey 时回退到 dir。 */
+  readonly runDir: string;
+  /** 本任务的工作日志文件(<runDir>/work-log.md);每任务一份,并行写入不冲突。 */
+  readonly workLogPath: string;
+  /** 当前工作日志内容(用于注入提示词,让 agent 续上进度)。 */
+  readonly workLog: string;
+}
+
+/** 文件系统安全的 taskKey:仅留 [\w.-],其余转 _,截断,避免路径穿越/超长。 */
+export function safeKey(key: string): string {
+  return key.replace(/[^\w.-]+/g, "_").replace(/^[-.]+/, "").slice(0, 80) || "default";
 }
 
 async function exists(p: string): Promise<boolean> {
@@ -33,7 +44,10 @@ export interface PrepareInput {
   readonly agentsRoot: string;
   readonly handle: string;
   readonly cliPath: string; // 构建后的 crew CLI 入口
-  readonly systemPrompt: string;
+  /** 系统提示词;省略则不写(调用方拿到 memory/workLog 后自行 build 再写 systemPromptPath)。 */
+  readonly systemPrompt?: string;
+  /** 本次运行的任务键(线程锚点/频道);用于隔离 cwd 与 per-task work-log。 */
+  readonly taskKey?: string;
 }
 
 export async function prepareWorkspace(input: PrepareInput): Promise<PreparedWorkspace> {
@@ -48,9 +62,9 @@ export async function prepareWorkspace(input: PrepareInput): Promise<PreparedWor
   }
   const memory = await readFile(memoryPath, "utf8");
 
-  // 系统提示词 (每次覆盖,保证最新)
+  // 系统提示词 (每次覆盖,保证最新);省略时由调用方在拿到 memory 后自行写入。
   const systemPromptPath = join(crewDir, "system-prompt.md");
-  await writeFile(systemPromptPath, input.systemPrompt, "utf8");
+  if (input.systemPrompt != null) await writeFile(systemPromptPath, input.systemPrompt, "utf8");
 
   // crew wrapper:exec 构建后的 CLI;凭证/地址经 env 注入,故 wrapper 极简
   const wrapper = join(crewDir, "crew");
@@ -67,7 +81,18 @@ export async function prepareWorkspace(input: PrepareInput): Promise<PreparedWor
   await mkdir(join(homeDir, ".local", "share"), { recursive: true });
   await mkdir(join(homeDir, ".cache"), { recursive: true });
 
-  return { dir, crewDir, systemPromptPath, memory, homeDir };
+  // 每任务隔离的运行目录(并行运行互不干扰的 cwd)+ per-task work-log。
+  // 无 taskKey(罕见)时回退到共享 dir(单运行旧行为)。
+  let runDir = dir;
+  let workLogPath = join(dir, "tasks", "default", "work-log.md");
+  if (input.taskKey) {
+    runDir = join(dir, "tasks", safeKey(input.taskKey));
+    await mkdir(runDir, { recursive: true });
+    workLogPath = join(runDir, "work-log.md");
+  }
+  const workLog = (await exists(workLogPath)) ? await readFile(workLogPath, "utf8") : "";
+
+  return { dir, crewDir, systemPromptPath, memory, homeDir, runDir, workLogPath, workLog };
 }
 
 /**

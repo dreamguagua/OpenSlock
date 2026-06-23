@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtemp, rm, mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseMemory, inspectRaftWorkspace, importRaftWorkspace } from "../src/workspace-import.js";
+import { parseMemory, stripActiveContext, inspectRaftWorkspace, importRaftWorkspace } from "../src/workspace-import.js";
 
 let roots: string[] = [];
 afterEach(async () => {
@@ -42,6 +42,28 @@ describe("parseMemory", () => {
     const r = parseMemory("# Bob\n\nA general helper agent.\n\n## Notes\nfoo");
     expect(r.name).toBe("Bob");
     expect(r.description).toBe("A general helper agent.");
+  });
+});
+
+describe("stripActiveContext", () => {
+  it("清空 Active Context 正文,保留标题 + 其它段落", () => {
+    const md = "# Cindy\n\n## Role\nlead\n\n## Active Context\n- task #181 in_review\n- task #7 blocked\n\n## Index\n- notes/x.md";
+    const out = stripActiveContext(md);
+    expect(out).toContain("## Role\nlead");
+    expect(out).toContain("## Active Context"); // 标题保留
+    expect(out).not.toContain("task #181"); // 陈旧任务 id 已剥离
+    expect(out).not.toContain("task #7");
+    expect(out).toContain("## Index\n- notes/x.md"); // 后续段落完整保留
+  });
+  it("以 --- 结尾的 Active Context 也能剥离(保留 --- 后内容)", () => {
+    const md = "# A\n## Active Context\n- task #99 doing\n\n---\nhow to maintain";
+    const out = stripActiveContext(md);
+    expect(out).not.toContain("task #99");
+    expect(out).toContain("---\nhow to maintain");
+  });
+  it("无 Active Context 段 → 原样返回", () => {
+    const md = "# A\n## Role\nx";
+    expect(stripActiveContext(md)).toBe(md);
   });
 });
 
