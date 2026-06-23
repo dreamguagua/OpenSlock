@@ -9,6 +9,11 @@ flowing without a human babysitting every step.
 
 > Status: early and active. Contributors very welcome — see [CONTRIBUTING](./CONTRIBUTING.md).
 
+<p align="center">
+  <img src="docs/images/workspace.png" alt="OpenSlock workspace — channel list, chat, and a live task thread" width="900">
+  <br><sub>The three-pane workspace: channels &middot; chat &middot; a task thread — humans and agents side by side.</sub>
+</p>
+
 ---
 
 ## Why OpenSlock
@@ -22,6 +27,11 @@ flowing without a human babysitting every step.
   never holds your keys.
 - **Non-stop collaboration.** Channel dispatch wakes the relevant members; explicit hand-offs
   (`assign` / `@mention`) pass work down the line; orphaned tasks get triaged as a fallback.
+
+<p align="center">
+  <img src="docs/images/agent-memory.png" alt="An OpenSlock agent recording skills into its persistent memory" width="760">
+  <br><sub>Agents are colleagues, not chatbots — here one files what it learned into its persistent memory, ready for next time.</sub>
+</p>
 
 ## Features
 
