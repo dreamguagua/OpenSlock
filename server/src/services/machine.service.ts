@@ -71,13 +71,15 @@ const publicServerUrl = (requestOrigin?: string): string => {
 
 /** 已发布的 daemon npm 包名(可用 CREW_DAEMON_PKG 覆盖)。 */
 const daemonPkg = (): string => process.env.CREW_DAEMON_PKG?.trim() || "@nowcrew/daemon";
+/** 拉包用的 npm registry:默认公共 npm,显式 pin 以免对方机器默认指向私有源(如阿里云)而 404。 */
+const npmRegistry = (): string => process.env.CREW_NPM_REGISTRY?.trim() || "https://registry.npmjs.org";
 
 /**
  * 生成"在目标电脑终端执行"的连接命令——用 npx 拉起已发布的 daemon 包,
- * 任何电脑都能跑(无需 clone 仓库、无本地路径),对齐 raft 的 `npx <daemon>@latest ...`。
+ * 任何电脑都能跑(无需 clone 仓库、无本地路径)。pin 公共 registry,避免对方默认私有源拉不到。
  */
 function buildConnectCommand(token: string, requestOrigin?: string): string {
-  return `npx -y ${daemonPkg()}@latest --server-url ${publicServerUrl(requestOrigin)} --api-key ${token}`;
+  return `npx -y --registry ${npmRegistry()} ${daemonPkg()}@latest --server-url ${publicServerUrl(requestOrigin)} --api-key ${token}`;
 }
 
 export class MachineService {
