@@ -1,5 +1,5 @@
 /**
- * Crew HTTP 客户端 —— CLI 经它走 agent 数据面与 server 通信。
+ * OpenSlock HTTP 客户端 —— CLI 经它走 agent 数据面与 server 通信。
  * fetch 可注入,便于单测。
  */
 

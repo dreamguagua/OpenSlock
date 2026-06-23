@@ -1,9 +1,9 @@
 {
-  "name": "@crew-ai/server",
+  "name": "@nowcrew/server",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Crew Server — 业务状态唯一持有者:channel/message/task/freshness + 多租户",
+  "description": "OpenSlock Server — 业务状态唯一持有者:channel/message/task/freshness + 多租户",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

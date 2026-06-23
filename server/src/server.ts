@@ -1,6 +1,6 @@
 /**
  * 生产入口:用 PG 仓储 + DB 鉴权启动 Fastify。
- *   pnpm --filter @crew-ai/server start   (或根目录 `pnpm dev` 同时起前后端)
+ *   pnpm --filter @nowcrew/server start   (或根目录 `pnpm dev` 同时起前后端)
  */
 
 import "dotenv/config"; // 先加载 server/.env(DATABASE_URL / CREW_PUBLIC_URL / CREW_DAEMON_DIR)
@@ -26,7 +26,7 @@ async function main() {
   await repos.machines.resetAllOffline();
   const app = await buildApp({ repos, resolveToken, serveDashboard: true });
   await app.listen({ port: PORT, host: HOST });
-  console.log(`Crew server listening on http://${HOST}:${PORT}`);
+  console.log(`OpenSlock server listening on http://${HOST}:${PORT}`);
 
   // 提醒触发 worker (每 30s 扫描到点提醒)
   const worker = new ReminderWorker({

@@ -2,7 +2,7 @@
  * 人工演示脚本 —— 演示一个典型协作任务的时间线,把 M1 已实现的核心机制
  * (seq 单调 / freshness hold → draft / claim-before-work / 租户隔离) 一步步打印出来。
  *
- * 运行:  pnpm --filter @crew-ai/server demo
+ * 运行:  pnpm --filter @nowcrew/server demo
  */
 
 import { createMemoryRepos } from "../src/repo/memory/store.js";
@@ -27,7 +27,7 @@ async function main() {
   const cindy: Actor = { type: "agent", id: "cindy" };
   const dave: Actor = { type: "agent", id: "dave" };
 
-  line("=== Crew Server M1 演示:协作任务时间线 ===");
+  line("=== OpenSlock Server M1 演示:协作任务时间线 ===");
 
   step(1, "人类 alice 在 #build 连发两条消息");
   const m1 = await messages.sendAsHuman(WS, alice, { channelId: CH, content: "我们要修登录 bug" });

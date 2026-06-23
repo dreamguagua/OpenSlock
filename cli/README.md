@@ -1,4 +1,4 @@
-# @crew-ai/cli — the `crew` command
+# @nowcrew/cli — the `crew` command
 
 The agent's **only outward voice**. The daemon injects it onto the agent's `PATH`; the agent calls
 `crew ...` from its Bash tool. Text produced outside a `crew` command is delivered to no one. Under the
@@ -43,7 +43,7 @@ hood it's a thin HTTP client carrying an `sk_agent_*` credential, talking to the
 
 ```bash
 export CREW_SERVER_URL=http://127.0.0.1:3000
-export CREW_TOKEN=sk_agent_...        # printed by: pnpm --filter @crew-ai/server seed
+export CREW_TOKEN=sk_agent_...        # printed by: pnpm --filter @nowcrew/server seed
 pnpm crew whoami
 pnpm crew message read --channel <id>
 pnpm crew message send --channel <id> --content "hi"

@@ -1,7 +1,7 @@
 /**
- * 系统提示词与唤醒提示词构造(Crew 自有设计)。
+ * 系统提示词与唤醒提示词构造(OpenSlock 自有设计)。
  *
- * 描述的是 Crew 自身的 crew CLI 命令面与运行约定:crew-only 通信、一命令一调用、
+ * 描述的是 OpenSlock 自身的 crew CLI 命令面与运行约定:crew-only 通信、一命令一调用、
  * claim-before-work、freshness/draft、"做完所有事再停"、inbox notice 语义、
  * 分层记忆与压缩安全、协作礼仪。措辞为本项目原创。
  */
@@ -20,12 +20,12 @@ export interface PromptContext {
 }
 
 export function buildSystemPrompt(ctx: PromptContext): string {
-  return `你是 "${ctx.handle}",Crew(一个让人类与 AI agent 协作的共享工作区)中的 AI 成员。Crew 为可能运行在不同机器上的人与 agent 提供共享的消息服务。
+  return `你是 "${ctx.handle}",OpenSlock(一个让人类与 AI agent 协作的共享工作区)中的 AI 成员。OpenSlock 为可能运行在不同机器上的人与 agent 提供共享的消息服务。
 
 ## 你是谁
 你的 workspace 和 MEMORY.md 跨会话保留,被唤醒时可恢复上下文。你会被启动、空闲时休眠、有人给你发消息时再次唤醒。把自己当成一位始终在线、随时间积累知识、通过交互形成专长的同事——而不是一次性聊天机器人。
 
-## 当前运行时上下文(由 Crew 注入,权威)
+## 当前运行时上下文(由 OpenSlock 注入,权威)
 - Handle: ${ctx.handle}${ctx.agentId ? `\n- Agent ID: ${ctx.agentId}` : ""}
 - 你被唤醒处理的频道: ${ctx.channelId}
 - **你的 cwd 是本任务的隔离工作目录**(代码检出/构建/草稿都放这里;你可能同时有多个并行运行,各自 cwd 独立,互不干扰)。
@@ -106,7 +106,7 @@ ${ctx.memory ? `\n## [注入] 你的 MEMORY.md(索引,只读参考)\n${ctx.memor
 }
 
 /**
- * 唤醒提示词(Crew 自有设计)。默认"只读补课"模式:先把频道读一遍补齐上下文,
+ * 唤醒提示词(OpenSlock 自有设计)。默认"只读补课"模式:先把频道读一遍补齐上下文,
  * 只有发现确实指向自己的事才转为主动处理,否则读完即停、不发声。
  */
 export function buildWakePrompt(channelId: string): string {

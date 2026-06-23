@@ -1,9 +1,9 @@
 {
-  "name": "@crew-ai/web",
+  "name": "@nowcrew/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Crew Web —— 人与 AI agent 协作的前端工作区 (Vue 3 + Vite)",
+  "description": "OpenSlock Web —— 人与 AI agent 协作的前端工作区 (Vue 3 + Vite)",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",

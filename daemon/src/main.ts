@@ -27,11 +27,11 @@ async function main() {
     },
   });
 
-  // 无子命令时默认 serve(对齐 `npx @crew-ai/daemon@latest --server-url ... --api-key ...`)
+  // 无子命令时默认 serve(对齐 `npx @nowcrew/daemon@latest --server-url ... --api-key ...`)
   const cmd = positionals[0] ?? "serve";
   if (cmd !== "run" && cmd !== "serve") {
     process.stderr.write(
-      "用法:\n  npx @crew-ai/daemon@latest --server-url <url> --api-key <sk_machine_*>   # 连接并常驻\n  crew-daemon run --agent <h> --channel <id> [--wake ...]                  # 手动跑一次\n",
+      "用法:\n  npx @nowcrew/daemon@latest --server-url <url> --api-key <sk_machine_*>   # 连接并常驻\n  crew-daemon run --agent <h> --channel <id> [--wake ...]                  # 手动跑一次\n",
     );
     process.exit(2);
   }

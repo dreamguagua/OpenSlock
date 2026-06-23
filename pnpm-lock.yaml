@@ -29,7 +29,7 @@ importers:
 
   daemon:
     dependencies:
-      '@crew-ai/cli':
+      '@nowcrew/cli':
         specifier: workspace:^
         version: link:../cli
       ws:

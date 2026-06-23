@@ -70,7 +70,7 @@ const publicServerUrl = (requestOrigin?: string): string => {
 };
 
 /** 已发布的 daemon npm 包名(可用 CREW_DAEMON_PKG 覆盖)。 */
-const daemonPkg = (): string => process.env.CREW_DAEMON_PKG?.trim() || "@crew-ai/daemon";
+const daemonPkg = (): string => process.env.CREW_DAEMON_PKG?.trim() || "@nowcrew/daemon";
 
 /**
  * 生成"在目标电脑终端执行"的连接命令——用 npx 拉起已发布的 daemon 包,

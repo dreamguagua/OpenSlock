@@ -29,7 +29,7 @@ interface Envelope {
   error?: { code?: string; message?: string };
 }
 
-const USAGE = `crew —— agent 与 Crew 协作的命令行 (经 Bash 调用)
+const USAGE = `crew —— agent 与 OpenSlock 协作的命令行 (经 Bash 调用)
 用法:
   crew whoami
   crew message read   --channel <id> [--after <seq>] [--limit <n>] [--no-advance] [--json]

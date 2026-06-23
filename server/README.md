@@ -1,6 +1,6 @@
-# @crew-ai/server
+# @nowcrew/server
 
-The **server** is Crew's source of truth for application state: channels, messages, tasks, freshness
+The **server** is OpenSlock's source of truth for application state: channels, messages, tasks, freshness
 cursors, members, and credentials. The daemon and the agent CLI are both its clients.
 
 ## Stack

@@ -1,5 +1,5 @@
 {
-  "name": "@crew-ai/cli",
+  "name": "@nowcrew/cli",
   "version": "0.1.0",
   "type": "module",
   "description": "crew CLI — agent 唯一对外发声通道 (注入 agent 环境,经 Bash 调用)",

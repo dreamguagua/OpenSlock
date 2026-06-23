@@ -3,7 +3,7 @@
  *  打 @ 后弹出本频道 agent/human 列表:↑↓ 选择、Enter/Tab 确认、Esc 关闭、鼠标点选;
  *  菜单关闭时 Enter 走正常发送(emit onEnter)。仅做交互,数据与发送逻辑由父组件提供。 */
 
-import { ref, computed, nextTick } from "vue";
+import { ref, computed, nextTick, watch, onMounted } from "vue";
 import type { Member } from "../types.js";
 import Avatar from "./Avatar.vue";
 import { applyMention, filterMembers, findMentionQuery, type MentionQuery } from "../mentions.js";
@@ -57,11 +57,25 @@ const choose = (m: Member) => {
   });
 };
 
+// 随内容自动增高:先归零再按 scrollHeight 撑开,超过 CSS max-height 后由 overflow 滚动接管。
+// 默认两行高度交给 CSS 的 min-height,这里只负责"内容多了往上长"。
+const autoGrow = () => {
+  const ta = el.value;
+  if (!ta) return;
+  ta.style.height = "auto";
+  ta.style.height = `${ta.scrollHeight}px`;
+};
+
 const onInput = (ev: Event) => {
   const ta = ev.target as HTMLTextAreaElement;
   emit("update:modelValue", ta.value);
   sync(ta);
+  autoGrow();
 };
+
+// 外部清空/回填(如发送后重置)时也要重算高度,缩回默认两行。
+watch(() => props.modelValue, () => nextTick(autoGrow));
+onMounted(autoGrow);
 
 const onKeydown = (e: KeyboardEvent) => {
   if (open.value) {

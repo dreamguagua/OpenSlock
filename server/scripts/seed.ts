@@ -2,7 +2,7 @@
  * Seed —— 往真实 PostgreSQL 灌入 task#160 演示场景,供在 TablePlus 等 GUI 里浏览。
  * 同时充当 PG 仓储层的端到端冒烟:跑通后即证明 schema + RLS + 原子 seq/claim 正常。
  *
- * 运行:  export DATABASE_URL=... ; pnpm --filter @crew-ai/server seed
+ * 运行:  export DATABASE_URL=... ; pnpm --filter @nowcrew/server seed
  * 幂等:每次重建演示 workspace (按 slug 删除后重插)。
  */
 

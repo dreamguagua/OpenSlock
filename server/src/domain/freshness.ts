@@ -1,5 +1,5 @@
 /**
- * Freshness hold —— Crew 区别于普通聊天的关键机制。
+ * Freshness hold —— OpenSlock 区别于普通聊天的关键机制。
  *
  * 任何会产生 side effect 的操作 (message send / task claim),若操作目标在 agent
  * 的模型"上次看过之后"出现了它没见过的新消息,server 必须先**阻断**该操作并回灌

@@ -5,7 +5,7 @@ export const DASHBOARD_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Crew · 进度看板</title>
+<title>OpenSlock · 进度看板</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -40,7 +40,7 @@ export const DASHBOARD_HTML = `<!doctype html>
 </head>
 <body>
 <header>
-  <b>Crew</b>
+  <b>OpenSlock</b>
   <input id="token" placeholder="粘贴 sk_user_* token (pnpm seed 会打印)" />
   <button onclick="connect()">连接</button>
   <span id="live">●  未连接</span>

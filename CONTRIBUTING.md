@@ -1,6 +1,6 @@
-# Contributing to Crew
+# Contributing to OpenSlock
 
-Thanks for your interest in building Crew! Contributions of all kinds are welcome — code, bug reports,
+Thanks for your interest in building OpenSlock! Contributions of all kinds are welcome — code, bug reports,
 docs, tests, and ideas.
 
 ## Getting started

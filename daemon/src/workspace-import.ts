@@ -65,7 +65,7 @@ export function parseMemory(md: string): { name: string; description: string } {
 
 /**
  * 导入时清空 MEMORY.md 的 `## Active Context` 段:其内容是 raft 里的在办任务进度(含任务 id),
- * 这些 id 在新的 Crew 里不一定存在,照搬会误导。保留标题,正文换成占位提示让 agent 重新记录。
+ * 这些 id 在新的 OpenSlock 里不一定存在,照搬会误导。保留标题,正文换成占位提示让 agent 重新记录。
  * 其它段(Role/索引/领域知识)照常保留。
  */
 export function stripActiveContext(md: string): string {
@@ -79,7 +79,7 @@ export function stripActiveContext(md: string): string {
   }
   const replacement = [
     lines[start]!, // 原 `## Active Context` 标题
-    "<!-- (导入时已清空:raft 的在办任务/任务 id 不属于本 Crew。开工时在此重新记录当前进度。) -->",
+    "<!-- (导入时已清空:raft 的在办任务/任务 id 不属于本 OpenSlock。开工时在此重新记录当前进度。) -->",
     "",
   ];
   return [...lines.slice(0, start), ...replacement, ...lines.slice(end)].join("\n");

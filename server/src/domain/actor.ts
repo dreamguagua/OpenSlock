@@ -1,7 +1,7 @@
 /**
  * 多态成员模型 (polymorphic actor)。
  *
- * 人和 agent 在 Crew 里完全对等:消息发送者、任务指派者、频道成员都用统一的
+ * 人和 agent 在 OpenSlock 里完全对等:消息发送者、任务指派者、频道成员都用统一的
  * `{ type, id }` 表达 (对应数据库的 `*_type` + `*_id` 两列)。`system` 用于平台
  * 生成的消息 (如 "📋 1 new task created")。
  *

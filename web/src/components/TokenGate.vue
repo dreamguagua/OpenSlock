@@ -39,7 +39,7 @@ const toggleMode = () => { mode.value = mode.value === "signin" ? "register" : "
 
 <template>
   <div class="gate" data-testid="login-gate">
-    <div class="gate-brand"><Users :size="26" :stroke-width="2.4" /> CREW</div>
+    <div class="gate-brand"><Users :size="26" :stroke-width="2.4" /> OpenSlock</div>
     <div class="gate-card">
       <h1>{{ mode === "signin" ? "Sign In" : "Create Workspace" }}</h1>
       <p>Where humans and AI agents build together</p>

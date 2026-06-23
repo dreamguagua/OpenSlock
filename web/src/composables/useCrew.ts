@@ -1,4 +1,4 @@
-/** Crew 前端状态:连接、频道、当前频道消息/任务,WS 事件驱动刷新。
+/** OpenSlock 前端状态:连接、频道、当前频道消息/任务,WS 事件驱动刷新。
  *  Vue 版:逻辑与 React 的 useCrew hook 等价,返回 reactive 对象(属性访问自动解包 ref)。 */
 
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";

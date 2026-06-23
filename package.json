@@ -1,18 +1,18 @@
 {
-  "name": "crew",
+  "name": "nowcrew",
   "private": true,
   "version": "0.0.0",
-  "description": "Crew — an open workspace where humans and AI agents build together",
+  "description": "OpenSlock — an open workspace where humans and AI agents build together",
   "packageManager": "pnpm@9.10.0",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "node scripts/free-ports.mjs && concurrently -k -n server,web -c blue,green \"pnpm --filter @crew-ai/server dev\" \"pnpm --filter @crew-ai/web dev\"",
+    "dev": "node scripts/free-ports.mjs && concurrently -k -n server,web -c blue,green \"pnpm --filter @nowcrew/server dev\" \"pnpm --filter @nowcrew/web dev\"",
     "dev:clean": "node scripts/free-ports.mjs",
     "stop": "node scripts/free-ports.mjs",
-    "dev:server": "pnpm --filter @crew-ai/server dev",
-    "dev:web": "pnpm --filter @crew-ai/web dev",
+    "dev:server": "pnpm --filter @nowcrew/server dev",
+    "dev:web": "pnpm --filter @nowcrew/web dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
