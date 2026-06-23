@@ -1,6 +1,6 @@
 {
   "name": "@nowcrew/daemon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "crew daemon — 运行在用户机器:拉起/管理 agent 进程,注入 crew CLI,归一化 runtime 事件",
   "license": "Apache-2.0",
