@@ -15,6 +15,9 @@ import ComputersColumn from "./ComputersColumn.vue";
 import PaneHeader from "./PaneHeader.vue";
 import Placeholder from "./Placeholder.vue";
 import AgentDetail from "./AgentDetail.vue";
+import HumanDetail from "./HumanDetail.vue";
+import InviteDialog from "./InviteDialog.vue";
+import WorkspaceSwitcher from "./WorkspaceSwitcher.vue";
 import MachineDetail from "./MachineDetail.vue";
 import ActivityView from "./ActivityView.vue";
 import SavedView from "./SavedView.vue";
@@ -34,7 +37,7 @@ import SettingsDialog from "./SettingsDialog.vue";
 type View = "channel" | "activity" | "saved" | "search" | "members" | "computers" | "actions";
 type Tab = "chat" | "tasks" | "files";
 
-const props = defineProps<{ token: string; onLogout: () => void }>();
+const props = defineProps<{ token: string; onLogout: () => void; onConnect: (token: string) => void }>();
 
 const c = useCrew(props.token);
 
@@ -42,6 +45,12 @@ const view = ref<View>("channel");
 const tab = ref<Tab>("chat");
 const threadId = ref<string | null>(null);
 const selectedAgent = ref<string | null>(null);
+const selectedHuman = ref<string | null>(null);
+const showInvite = ref(false);
+const showSwitcher = ref(false);
+// 当前用户在本工作区是否为 owner/admin(可邀请/管理成员/看 agent 工作区)
+const canManage = computed(() => c.me?.role === "owner" || c.me?.role === "admin");
+const wsInitial = computed(() => (c.me?.workspace?.name?.[0] ?? "C").toUpperCase());
 const showNewAgent = ref(false);
 const newAgentMachineId = ref<string | null>(null); // 从电脑详情「+ Create」打开时预选的本机 id
 const machineAgentsTick = ref(0); // 自增以让 MachineDetail 重拉本机 agent 列表(创建后)
@@ -134,7 +143,7 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
 
 <template>
   <div class="shell" data-testid="workspace">
-    <FarRail workspace-initial="C" :active="railActive" :on-nav="navRail" :on-logout="onLogout" :on-settings="() => showSettings = true" />
+    <FarRail :workspace-initial="wsInitial" :active="railActive" :on-nav="navRail" :on-logout="onLogout" :on-settings="() => showSettings = true" :on-workspace="() => showSwitcher = true" />
     <!-- key 随 pane 数变化:splitpanes 在增/删 pane 时不会重读 :size,会把腾出的空间错误重分配
          (出现 40|50 之类不足 100% 的布局),故仅在 2↔3 栏切换时整体重挂载以重置为正确尺寸。
          key 不随频道/视图切换变化,日常聊天不会重挂载。 -->
@@ -143,10 +152,12 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
         <MembersColumn
           v-if="view === 'members'"
           :agents="c.agents" :humans="c.humans" :agent-status="c.agentStatus"
-          :selected-handle="selectedAgent"
-          :on-select-agent="(h) => selectedAgent = h"
+          :selected-handle="selectedAgent" :selected-human="selectedHuman" :can-manage="canManage"
+          :on-select-agent="(h) => { selectedAgent = h; selectedHuman = null; }"
+          :on-select-human="(h) => { selectedHuman = h; selectedAgent = null; }"
           :on-new-agent="() => showNewAgent = true"
           :on-import-agent="() => showImportAgent = true"
+          :on-invite="() => showInvite = true"
         />
         <ComputersColumn
           v-else-if="view === 'computers'"
@@ -170,13 +181,20 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
               v-if="selectedAgent"
               :handle="selectedAgent" :machines="c.machines"
               :activity="c.agentActivity[selectedAgent]" :status="c.agentStatus[selectedAgent]"
+              :can-view-workspace="canManage"
               :on-save="c.editAgent" :on-delete="c.removeAgent"
               :on-deleted="() => selectedAgent = null"
               :on-message="onAgentMessage"
             />
+            <HumanDetail
+              v-else-if="selectedHuman"
+              :handle="selectedHuman" :can-manage="canManage" :is-self="selectedHuman === c.me?.handle"
+              :on-message="onAgentMessage"
+              :on-removed="() => { selectedHuman = null; void c.refreshDirectory(); }"
+            />
             <template v-else>
               <PaneHeader title="Members" :connected="c.connected" :on-logout="onLogout" />
-              <Placeholder title="Select an agent" note="Click an agent on the left to view Profile / Workspace / Activity, or click + to create one" />
+              <Placeholder title="Select a member" note="Click an agent or human on the left to view details, or click + to create / invite" />
             </template>
           </template>
 
@@ -310,6 +328,15 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
       :on-close="() => showSettings = false"
       :on-logout="() => { showSettings = false; onLogout(); }"
       :on-profile-saved="() => c.refreshDirectory()"
+    />
+
+    <InviteDialog v-if="showInvite" :on-close="() => showInvite = false" />
+
+    <WorkspaceSwitcher
+      v-if="showSwitcher"
+      :current-workspace-id="c.me?.workspace?.id ?? ''"
+      :on-switch="(t) => { showSwitcher = false; onConnect(t); }"
+      :on-close="() => showSwitcher = false"
     />
 
     <ImportAgentDialog

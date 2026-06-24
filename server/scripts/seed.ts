@@ -13,7 +13,8 @@ import { MessageService } from "../src/services/message.service.js";
 import { TaskService } from "../src/services/task.service.js";
 import { ReadStateService } from "../src/services/read-state.service.js";
 import { createPgRepos } from "../src/repo/pg/repos.js";
-import { mintCredential, createAccount } from "../src/auth/service.js";
+import { mintCredential } from "../src/auth/service.js";
+import { hashPassword } from "../src/auth/password.js";
 import { isDomainError } from "../src/domain/errors.js";
 import type { Actor } from "../src/domain/actor.js";
 
@@ -32,6 +33,9 @@ async function main() {
 
   log("=== Seed: 重建演示 workspace ===");
   // workspace 是租户根,无 RLS:可直接操作。先按 slug 清掉旧的 (级联删子表)。
+  // account 现为全局身份(删 workspace 只置空其指针,不级联),故另按 email 清旧账号
+  // (级联删其 membership),保证重复 seed 幂等。
+  await db.delete(s.account).where(eq(s.account.email, "demo@crew.dev"));
   await db.delete(s.workspace).where(eq(s.workspace.slug, "demo"));
   const [ws] = await db
     .insert(s.workspace)
@@ -50,8 +54,8 @@ async function main() {
       workspaceId: WS, handle: "alice", displayName: "Alice",
     });
     await tx.insert(s.agent).values([
-      { workspaceId: WS, handle: "cindy", displayName: "Cindy" },
-      { workspaceId: WS, handle: "dave", displayName: "Dave" },
+      { workspaceId: WS, handle: "cindy", displayName: "Cindy", createdByHandle: "alice" },
+      { workspaceId: WS, handle: "dave", displayName: "Dave", createdByHandle: "alice" },
     ]);
     return ch!.id;
   });
@@ -111,10 +115,15 @@ async function main() {
   const userToken = await mintCredential(WS, "user", alice);
   const agentToken = await mintCredential(WS, "agent", cindy);
   const machineToken = await mintCredential(WS, "machine", { type: "system", id: "machine-1" });
-  // 登录账号(邮箱密码 → 网页登录,免贴 token)
-  await createAccount(WS, "demo@crew.dev", "crew1234", alice.id);
+  // 登录账号(全局身份)+ owner 成员身份(membership 是角色/切换的权威表)
+  const [acc] = await db.insert(s.account).values({
+    email: "demo@crew.dev", passwordHash: hashPassword("crew1234"),
+    name: "Alice", workspaceId: WS, handle: "alice", // workspaceId/handle = 最近活跃指针
+  }).returning();
+  await db.insert(s.membership).values({ accountId: acc!.id, workspaceId: WS, handle: "alice", role: "owner" });
+  await db.update(s.workspace).set({ createdByAccountId: acc!.id }).where(eq(s.workspace.id, WS));
   log("\n=== 网页登录账号(邮箱密码,免贴 token) ===");
-  log("  邮箱: demo@crew.dev   密码: crew1234");
+  log("  邮箱: demo@crew.dev   密码: crew1234  (角色: owner)");
 
   log("\n=== 可用 token (HTTP/WS 鉴权用,明文仅打印这一次) ===");
   log(`  USER    (sk_user_*)   : ${userToken}`);

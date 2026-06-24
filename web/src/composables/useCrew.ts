@@ -5,11 +5,12 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { api, setToken } from "../api.js";
 import { connectWs } from "../ws.js";
 import { deriveStatus, ACTIVITY_TTL_MS, TERMINAL_ACTIVITIES } from "../status.js";
-import type { AgentActivity, AgentPatch, AgentProfile, AgentStatusInfo, Channel, ChannelMember, CreateMachineResult, ImportRaftInput, Machine, Member, Message, NewAgentInput, Task } from "../types.js";
+import type { AgentActivity, AgentPatch, AgentProfile, AgentStatusInfo, Channel, ChannelMember, CreateMachineResult, ImportRaftInput, Machine, Me, Member, Message, NewAgentInput, Task } from "../types.js";
 
 export interface CrewState {
   connected: boolean;
   error: string | null;
+  me: Me | null;
   channels: Channel[];
   agents: Member[];
   humans: Member[];
@@ -56,6 +57,7 @@ export interface CrewState {
 export function useCrew(token: string): CrewState {
   const connected = ref(false);
   const error = ref<string | null>(null);
+  const me = ref<Me | null>(null);
   const channels = ref<Channel[]>([]);
   const agents = ref<Member[]>([]);
   const humans = ref<Member[]>([]);
@@ -68,7 +70,8 @@ export function useCrew(token: string): CrewState {
 
   const loadServerInfo = async () => {
     try {
-      const info = await api.serverInfo();
+      const [info, meInfo] = await Promise.all([api.serverInfo(), api.me().catch(() => null)]);
+      if (meInfo) me.value = meInfo;
       channels.value = info.channels;
       agents.value = info.agents;
       humans.value = info.humans;
@@ -316,7 +319,7 @@ export function useCrew(token: string): CrewState {
 
   // reactive 包装:消费侧用 c.channels / c.connected 即自动解包 ref(与 React 的 c.x 访问一致)
   return reactive({
-    connected, error, channels, agents, humans,
+    connected, error, me, channels, agents, humans,
     selectedChannelId, messages, tasks, agentActivity, agentStatus,
     selectChannel, send, reply, createTask, search, createAgent, importAgent, editAgent, removeAgent, openDm,
     createChannel, joinChannel, leaveChannel, archiveChannel, addChannelMember, removeChannelMember,

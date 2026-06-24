@@ -127,6 +127,20 @@
       "when": 1782184958927,
       "tag": "0017_curvy_celestials",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782268282004,
+      "tag": "0018_square_vampiro",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782268466366,
+      "tag": "0019_blue_unus",
+      "breakpoints": true
     }
   ]
 }

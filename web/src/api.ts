@@ -1,6 +1,6 @@
 /** REST 客户端:web 数据面,sk_user_* 经 Authorization 头。同源(vite 反代到 :3000)。 */
 
-import type { ActionCard, ActivityFeedItem, AgentActivityItem, AgentPatch, AgentProfile, AttachmentMeta, Channel, ChannelFile, ChannelMember, CreateMachineResult, FsFile, FsList, ImportRaftInput, Machine, Me, Message, NewAgentInput, RaftInspectResult, ServerInfo, SkillInfo, Task } from "./types.js";
+import type { ActionCard, ActivityFeedItem, AgentActivityItem, AgentPatch, AgentProfile, AttachmentMeta, AuthResult, Channel, ChannelFile, ChannelMember, CreateMachineResult, FsFile, FsList, HumanDetail, ImportRaftInput, InvitePreview, Machine, Me, Message, NewAgentInput, RaftInspectResult, ServerInfo, SkillInfo, Task, WorkspaceRole, WorkspaceSummary } from "./types.js";
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -31,37 +31,44 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return json.data as T;
 }
 
-/** 登录(公开,无需 token):邮箱密码 → sk_user_* 令牌。 */
-export async function login(email: string, password: string): Promise<{ token: string; handle: string; workspaceId: string }> {
-  const res = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
+/** 公开请求(无需 token):用于登录/注册/邀请等鉴权前流程。 */
+async function pub<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    ...(body !== undefined ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
   });
   const json = (await res.json().catch(() => null)) as
-    | { success: boolean; data?: { token: string; handle: string; workspaceId: string }; error?: { message?: string } }
+    | { success: boolean; data?: T; error?: { code?: string; message?: string } }
     | null;
-  if (!res.ok || !json?.success || !json.data) {
-    throw new ApiError(res.status, "LOGIN", json?.error?.message ?? "Login failed");
+  if (!res.ok || !json?.success) {
+    throw new ApiError(res.status, json?.error?.code ?? "ERR", json?.error?.message ?? "Request failed");
   }
-  return json.data;
+  return json.data as T;
 }
 
-/** 注册(公开):新建工作区 + owner 账号 → sk_user_* 令牌。 */
-export async function register(input: { email: string; password: string; workspaceName: string; displayName?: string }): Promise<{ token: string; handle: string; workspaceId: string }> {
-  const res = await fetch("/api/auth/register", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
-  });
-  const json = (await res.json().catch(() => null)) as
-    | { success: boolean; data?: { token: string; handle: string; workspaceId: string }; error?: { message?: string } }
-    | null;
-  if (!res.ok || !json?.success || !json.data) {
-    throw new ApiError(res.status, "REGISTER", json?.error?.message ?? "Registration failed");
-  }
-  return json.data;
-}
+/** 登录(公开):邮箱密码 → sk_user_* 令牌(或 needsWorkspace)。 */
+export const login = (email: string, password: string): Promise<AuthResult> =>
+  pub<AuthResult>("POST", "/api/auth/login", { email, password });
+
+/** 一步注册(公开,兼容旧流程):新建工作区 + owner 账号 → 令牌。 */
+export const register = (input: { email: string; password: string; workspaceName: string; displayName?: string }): Promise<AuthResult> =>
+  pub<AuthResult>("POST", "/api/auth/register", input);
+
+/** 第一步(公开):仅建全局账号(Create Account)。 */
+export const registerAccount = (input: { name: string; email: string; password: string }): Promise<{ accountId: string; email: string; name: string }> =>
+  pub("POST", "/api/auth/register-account", input);
+
+/** 第二步(公开):邮箱密码核验 → 新建工作区 → 令牌。 */
+export const createWorkspacePublic = (input: { email: string; password: string; workspaceName: string; displayName?: string }): Promise<AuthResult> =>
+  pub<AuthResult>("POST", "/api/auth/create-workspace", input);
+
+/** 邀请预览(公开):工作区名 + 人数/agent 数。 */
+export const previewInvite = (token: string): Promise<InvitePreview> =>
+  pub<InvitePreview>("GET", `/api/invites/${encodeURIComponent(token)}`);
+
+/** 接受邀请入区(公开,邮箱密码核验已有账号)→ 该工作区令牌。 */
+export const acceptInvitePublic = (token: string, input: { email: string; password: string; displayName?: string }): Promise<AuthResult> =>
+  pub<AuthResult>("POST", `/api/invites/${encodeURIComponent(token)}/accept`, input);
 
 export const api = {
   serverInfo: () => req<ServerInfo>("GET", "/api/server-info"),
@@ -71,6 +78,23 @@ export const api = {
     req<{ handle: string; displayName: string }>("PATCH", "/api/me/profile", patch),
   changePassword: (currentPassword: string, newPassword: string) =>
     req<{ changed: boolean }>("POST", "/api/me/password", { currentPassword, newPassword }),
+  // 多工作区:列表 / 新建 / 切换 / 接受邀请
+  myWorkspaces: () => req<WorkspaceSummary[]>("GET", "/api/me/workspaces"),
+  createWorkspace: (workspaceName: string, displayName?: string) =>
+    req<AuthResult>("POST", "/api/me/workspaces", { workspaceName, ...(displayName ? { displayName } : {}) }),
+  switchWorkspace: (workspaceId: string) =>
+    req<AuthResult>("POST", "/api/me/switch-workspace", { workspaceId }),
+  acceptInvite: (token: string) =>
+    req<AuthResult>("POST", "/api/me/accept-invite", { token }),
+  // 邀请管理 (owner/admin)
+  createInvite: (role?: "admin" | "member") =>
+    req<{ token: string; url: string }>("POST", "/api/invites", role ? { role } : {}),
+  // Human 详情 / 角色 / 移除 (owner/admin)
+  human: (handle: string) => req<HumanDetail>("GET", `/api/humans/${encodeURIComponent(handle)}`),
+  setHumanRole: (handle: string, role: WorkspaceRole) =>
+    req<HumanDetail>("PATCH", `/api/humans/${encodeURIComponent(handle)}/role`, { role }),
+  removeHuman: (handle: string) =>
+    req<{ removed: boolean }>("DELETE", `/api/humans/${encodeURIComponent(handle)}`),
   actions: () => req<ActionCard[]>("GET", "/api/actions"),
   executeAction: (id: string) => req<ActionCard>("POST", `/api/actions/${encodeURIComponent(id)}/execute`),
   dismissAction: (id: string) => req<ActionCard>("POST", `/api/actions/${encodeURIComponent(id)}/dismiss`),

@@ -44,13 +44,45 @@ export interface ChannelFile extends AttachmentMeta {
   uploader: Actor;
   createdAt: string;
 }
+export type WorkspaceRole = "owner" | "admin" | "member";
 export interface Me {
   tier: string;
   actor: Actor;
   handle?: string;
   displayName: string;
   email?: string | null;
+  role?: WorkspaceRole | null; // 当前用户在本工作区的角色(human/user 才有)
   workspace: { id: string; name: string; slug: string };
+}
+/** 切换器:我能访问的某个工作区。 */
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  slug: string;
+  handle: string;
+  role: WorkspaceRole;
+}
+/** 登录/注册/接受邀请的返回。token 为空 + needsWorkspace 表示账号尚无工作区。 */
+export interface AuthResult {
+  token: string;
+  handle: string;
+  workspaceId: string;
+  needsWorkspace?: boolean;
+}
+/** Join 页的邀请预览。 */
+export interface InvitePreview {
+  workspaceName: string;
+  humans: number;
+  agents: number;
+}
+/** Human 详情页数据。 */
+export interface HumanDetail {
+  handle: string;
+  displayName: string;
+  role: WorkspaceRole;
+  email: string | null;
+  joinedAt: string | null;
+  createdAgents: Array<{ handle: string; displayName: string }>;
 }
 export interface ActionCard {
   id: string;

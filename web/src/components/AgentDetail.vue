@@ -23,6 +23,7 @@ const props = defineProps<{
   onDelete: (handle: string) => Promise<void>;
   onDeleted: () => void;
   onMessage: (handle: string) => void;
+  canViewWorkspace?: boolean; // member 看不到 agent 工作区(隐藏 Workspace 页签)
 }>();
 
 const agent = ref<AgentProfile | null>(null);
@@ -78,7 +79,7 @@ const doDelete = async () => {
       <div :class="`tab ${tab === 'profile' ? 'active' : ''}`" data-testid="agent-tab-profile" @click="goProfile">
         <span class="ti"><IdCard :size="14" /></span> Profile
       </div>
-      <div :class="`tab ${tab === 'workspace' ? 'active' : ''}`" data-testid="agent-tab-workspace" @click="goWorkspace">
+      <div v-if="canViewWorkspace !== false" :class="`tab ${tab === 'workspace' ? 'active' : ''}`" data-testid="agent-tab-workspace" @click="goWorkspace">
         <span class="ti"><FolderOpen :size="14" /></span> Workspace
       </div>
       <div :class="`tab ${tab === 'activity' ? 'active' : ''}`" data-testid="agent-tab-activity" @click="goActivity">

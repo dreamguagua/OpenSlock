@@ -11,9 +11,13 @@ const props = defineProps<{
   humans: Member[];
   agentStatus: Record<string, AgentStatusInfo>;
   selectedHandle: string | null;
+  selectedHuman: string | null;
+  canManage: boolean; // owner/admin:可邀请成员
   onSelectAgent: (handle: string) => void;
+  onSelectHuman: (handle: string) => void;
   onNewAgent: () => void;
   onImportAgent: () => void;
+  onInvite: () => void;
 }>();
 
 const menuOpen = ref(false);
@@ -65,9 +69,15 @@ const chooseImport = () => { menuOpen.value = false; props.onImportAgent(); };
       <div class="sect">
         <span>HUMANS</span><span class="count">{{ humans.length }}</span>
         <span class="grow" />
-        <button class="sect-add" title="Invite member (coming soon)"><Plus :size="15" /></button>
+        <button v-if="canManage" class="sect-add" data-testid="invite-member-btn" title="Invite member" @click="onInvite"><Plus :size="15" /></button>
       </div>
-      <div v-for="h in humans" :key="h.handle" class="member-row" data-testid="human-row">
+      <div
+        v-for="h in humans"
+        :key="h.handle"
+        data-testid="human-row"
+        :class="`member-row ${h.handle === selectedHuman ? 'active' : ''}`"
+        @click="onSelectHuman(h.handle)"
+      >
         <Avatar type="human" :id="h.handle" :size="26" />
         <span class="nm">{{ h.displayName }}</span>
       </div>

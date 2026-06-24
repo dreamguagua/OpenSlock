@@ -12,7 +12,23 @@ import { maybePruneWorklog } from "../worklog-prune.js";
 import { resolveRequestOrigin } from "../request-origin.js";
 import { mentionedAgents } from "../../domain/mention.js";
 import { toDTO as attachmentDto } from "../../services/attachment.service.js";
-import { changePassword, getAccountEmail } from "../../auth/service.js";
+import {
+  changePassword,
+  getAccountEmail,
+  listMyWorkspaces,
+  switchWorkspace,
+  acceptInviteAsPrincipal,
+  createInvite,
+  createWorkspaceForPrincipal,
+} from "../../auth/service.js";
+import {
+  humanDetail,
+  setMemberRole,
+  removeMember,
+  assertRole,
+  memberRole,
+  tagAgentCreator,
+} from "../../services/members.service.js";
 
 const ProfileBody = z.object({
   displayName: z.string().trim().min(1, "display name required").max(80),
@@ -448,9 +464,11 @@ export async function registerWebRoutes(
       const me = [...info.humans, ...info.agents].find((m) => m.handle === p.actor.id);
       // 登录邮箱(account 仅 pg;内存仓储/无库时优雅降级为 null,不阻塞身份返回)
       let email: string | null = null;
+      let role: string | null = null;
       try {
         if (p.tier === "user" && p.actor.type === "human") {
           email = await getAccountEmail(p.workspaceId, p.actor.id);
+          role = await memberRole(p.workspaceId, p.actor.id);
         }
       } catch {
         email = null;
@@ -461,6 +479,7 @@ export async function registerWebRoutes(
         handle: p.actor.id,
         displayName: me?.displayName ?? p.actor.id,
         email,
+        role,
         workspace: workspace ?? { id: p.workspaceId, name: p.workspaceId, slug: p.workspaceId },
       });
     } catch (e) {
@@ -500,6 +519,122 @@ export async function registerWebRoutes(
     }
   });
 
+  // 我能访问的工作区列表(侧栏切换器)
+  app.get("/api/me/workspaces", guard, async (req, reply) => {
+    try {
+      return ok(await listMyWorkspaces(principalOf(req)));
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 已登录用户新建工作区(切换器"Create Workspace")→ 返回新工作区令牌
+  app.post("/api/me/workspaces", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      const b = z.object({
+        workspaceName: z.string().trim().min(1).max(80),
+        displayName: z.string().trim().min(1).max(80).optional(),
+      }).parse(req.body);
+      return reply.code(201).send(ok(await createWorkspaceForPrincipal(p, b)));
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 切换到已加入的另一个工作区 → 换取该工作区的新令牌
+  app.post("/api/me/switch-workspace", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      const b = z.object({ workspaceId: z.string().uuid() }).parse(req.body);
+      const r = await switchWorkspace(p, b.workspaceId);
+      if (!r) return reply.code(403).send(err("FORBIDDEN", "not a member of that workspace"));
+      return ok(r);
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 已登录用户接受邀请(从某工作区点开他人邀请链接)→ 加入并换令牌
+  app.post("/api/me/accept-invite", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      const b = z.object({ token: z.string().min(1) }).parse(req.body);
+      return reply.code(201).send(ok(await acceptInviteAsPrincipal(b.token, p)));
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 生成邀请链接(仅 owner/admin)。返回 token + 可分享 URL。
+  app.post("/api/invites", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      if (p.actor.type !== "human") return reply.code(403).send(err("FORBIDDEN", "only humans can create invites"));
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]);
+      const b = z.object({ role: z.enum(["admin", "member"]).optional() }).parse(req.body ?? {});
+      const { token } = await createInvite(p.workspaceId, p.actor.id, b.role ?? "member");
+      const origin = resolveRequestOrigin(req.headers) ?? process.env.CREW_PUBLIC_URL ?? "";
+      return reply.code(201).send(ok({ token, url: `${origin}/join/${token}` }));
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // Human 详情页:档案 + 角色 + 邮箱 + 加入时间 + 其创建的 agent
+  app.get("/api/humans/:handle", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      const { handle } = req.params as { handle: string };
+      const detail = await humanDetail(p.workspaceId, handle);
+      if (!detail) return reply.code(404).send(err("NOT_FOUND", `member not found: ${handle}`));
+      // 邮箱仅本人或 owner/admin 可见
+      const myRole = await memberRole(p.workspaceId, p.actor.id);
+      const canSeeEmail = p.actor.id === handle || myRole === "owner" || myRole === "admin";
+      return ok(canSeeEmail ? detail : { ...detail, email: null });
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 改成员角色(仅 owner/admin)
+  app.patch("/api/humans/:handle/role", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]);
+      const { handle } = req.params as { handle: string };
+      const b = z.object({ role: z.enum(["owner", "admin", "member"]) }).parse(req.body);
+      const updated = await setMemberRole(p.workspaceId, handle, b.role);
+      if (!updated) return reply.code(404).send(err("NOT_FOUND", `member not found: ${handle}`));
+      return ok(updated);
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 移除成员(仅 owner/admin;不能移除自己或最后一个 owner)
+  app.delete("/api/humans/:handle", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]);
+      const { handle } = req.params as { handle: string };
+      if (handle === p.actor.id) return reply.code(400).send(err("BAD_REQUEST", "use Leave workspace to remove yourself"));
+      const removed = await removeMember(p.workspaceId, handle);
+      if (!removed) return reply.code(404).send(err("NOT_FOUND", `member not found: ${handle}`));
+      return ok({ removed: true });
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
   app.get("/api/agents", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
@@ -528,6 +663,8 @@ export async function registerWebRoutes(
         ...(b.reasoning ? { reasoning: b.reasoning } : {}),
         ...(b.fastMode !== undefined ? { fastMode: b.fastMode } : {}),
       });
+      // 记录创建者(Human 详情页"Created Agents")
+      if (p.actor.type === "human") await tagAgentCreator(p.workspaceId, agent.handle, p.actor.id);
       return reply.code(201).send(ok(agent));
     } catch (e) {
       const { status, body } = toHttpError(e);
@@ -535,10 +672,11 @@ export async function registerWebRoutes(
     }
   });
 
-  // 预览:读 raft 工作区的 MEMORY.md 反填 name/description(不建 agent、不复制)
+  // 预览:读 raft 工作区的 MEMORY.md 反填 name/description(不建 agent、不复制)。member 无权查看 agent 工作区。
   app.post("/api/agents/import/inspect", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]);
       const b = z.object({ machineId: z.string().uuid(), raftPath: z.string().trim().min(1).max(500) }).parse(req.body);
       return ok(await svc.agents.inspectRaft(p.workspaceId, b.machineId, b.raftPath));
     } catch (e) {
@@ -551,6 +689,7 @@ export async function registerWebRoutes(
   app.post("/api/agents/import", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]);
       const b = ImportRaftBody.parse(req.body);
       const agent = await svc.agents.importRaft(p.workspaceId, {
         machineId: b.machineId,
@@ -559,6 +698,7 @@ export async function registerWebRoutes(
         description: b.description,
         runtime: b.runtime,
       });
+      if (p.actor.type === "human") await tagAgentCreator(p.workspaceId, agent.handle, p.actor.id);
       return reply.code(201).send(ok(agent));
     } catch (e) {
       const { status, body } = toHttpError(e);
@@ -582,6 +722,7 @@ export async function registerWebRoutes(
   app.get("/api/agents/:handle/files", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]); // member 看不到 agent 工作区
       const { handle } = req.params as { handle: string };
       const path = typeof (req.query as { path?: string }).path === "string" ? (req.query as { path: string }).path : "";
       return ok(await svc.workspace.list(p.workspaceId, handle, path));
@@ -618,6 +759,7 @@ export async function registerWebRoutes(
   app.get("/api/agents/:handle/skills", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]); // member 看不到 agent 工作区
       const { handle } = req.params as { handle: string };
       return ok(await svc.workspace.skills(p.workspaceId, handle));
     } catch (e) {
@@ -629,6 +771,7 @@ export async function registerWebRoutes(
   app.get("/api/agents/:handle/file", guard, async (req, reply) => {
     try {
       const p = principalOf(req);
+      await assertRole(p.workspaceId, p.actor.id, ["owner", "admin"]); // member 看不到 agent 工作区
       const { handle } = req.params as { handle: string };
       const q = z.object({ path: z.string().min(1) }).parse(req.query);
       return ok(await svc.workspace.read(p.workspaceId, handle, q.path));

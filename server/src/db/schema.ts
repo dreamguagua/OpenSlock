@@ -46,10 +46,13 @@ export const workspace = pgTable("workspace", {
   id: id(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  // 创建者(全局账号);账号删除则置空(工作区不随之消失)。
+  createdByAccountId: uuid("created_by_account_id").references((): AnyPgColumn => account.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
 
-// ---- 成员:人 ----
+// ---- 成员:人 (工作区内的人物档案:handle + displayName) ----
+// 账号↔工作区↔角色 的权威关系见非-RLS 的 membership 表(登录/切换需跨工作区查)。
 export const appUser = pgTable("app_user", {
   id: id(),
   workspaceId: uuid("workspace_id")
@@ -101,6 +104,7 @@ export const agent = pgTable("agent", {
   fastMode: boolean("fast_mode").notNull().default(false),
   status: text("status").notNull().default("idle"),
   machineId: uuid("machine_id").references(() => machine.id, { onDelete: "set null" }),
+  createdByHandle: text("created_by_handle"), // 创建该 agent 的人(app_user.handle);用于 Human 详情页"Created Agents"
   createdAt: createdAt(),
 }, (t) => ({
   uniqHandle: unique("uq_agent_handle").on(t.workspaceId, t.handle),
@@ -446,17 +450,55 @@ export const reminderEvent = pgTable("reminder_event", {
   byReminder: index("idx_reminder_event_reminder").on(t.reminderId, t.at),
 }));
 
-// ---- 登录账号 (登录引导表;故意不加 RLS:登录时尚不知 workspace,需按 email 全局查) ----
+// ---- 登录账号 (全局身份;故意不加 RLS:登录时尚不知 workspace,需按 email 全局查) ----
+// 一个 account 可加入多个工作区(成员身份见 app_user.account_id + role)。
+// workspaceId/handle 现为"最近活跃工作区"的便捷指针(可空),不再是唯一归属。
 export const account = pgTable("account", {
   id: id(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  name: text("name"), // 账号用户名(注册 Create Account 填写;可作各工作区默认 displayName)
+  workspaceId: uuid("workspace_id").references((): AnyPgColumn => workspace.id, { onDelete: "set null" }), // 最近活跃工作区
+  handle: text("handle"), // 最近活跃工作区里的 handle(便捷;权威值在 app_user)
+  createdAt: createdAt(),
+});
+
+// ---- 成员身份 (account ↔ workspace ↔ role 的权威关系) ----
+// 故意不加 RLS:登录/列出我的工作区/切换工作区 都需跨工作区按 account 全局查
+// (与 account/credential 同属登录引导表)。工作区内的人物档案另见 app_user。
+export const membership = pgTable("membership", {
+  id: id(),
+  accountId: uuid("account_id")
+    .notNull()
+    .references((): AnyPgColumn => account.id, { onDelete: "cascade" }),
   workspaceId: uuid("workspace_id")
     .notNull()
     .references(() => workspace.id, { onDelete: "cascade" }),
-  handle: text("handle").notNull(), // 登录后为该 app_user handle 签发 sk_user_*
+  handle: text("handle").notNull(), // 该账号在此工作区的 app_user.handle
+  role: text("role").notNull().default("member"), // owner | admin | member
   createdAt: createdAt(),
-});
+}, (t) => ({
+  uniqAccountWs: unique("uq_membership_account_ws").on(t.accountId, t.workspaceId),
+  byAccount: index("idx_membership_account").on(t.accountId),
+  byWsHandle: index("idx_membership_ws_handle").on(t.workspaceId, t.handle),
+}));
+
+// ---- 邀请链接 (raft invite:人点"+"生成可复用链接;未登录打开 → Join 页 → 登录/注册后自动入区) ----
+// 与 account/credential 同属登录引导表:接受邀请发生在登录前,需按 token 全局查 → 不加 RLS。
+export const invite = pgTable("invite", {
+  id: id(),
+  workspaceId: uuid("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(), // URL 里的随机串 (/join/<token>)
+  role: text("role").notNull().default("member"), // 接受后赋予的工作区角色
+  createdByHandle: text("created_by_handle").notNull(), // 生成邀请的人
+  expiresAt: timestamp("expires_at", { withTimezone: true }), // 可空 = 永不过期
+  revokedAt: timestamp("revoked_at", { withTimezone: true }), // 撤销后失效
+  createdAt: createdAt(),
+}, (t) => ({
+  byToken: index("idx_invite_token").on(t.token),
+}));
 
 /** 所有带 workspace_id、需要 RLS 的租户表 (供迁移启用 RLS 遍历)。 */
 export const TENANT_TABLES = [

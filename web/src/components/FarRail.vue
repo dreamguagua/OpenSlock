@@ -10,12 +10,13 @@ defineProps<{
   onNav: (s: RailSection) => void;
   onLogout: () => void;
   onSettings: () => void;
+  onWorkspace: () => void;
 }>();
 </script>
 
 <template>
   <nav class="rail">
-    <div class="ws" title="Workspace & settings" data-testid="rail-workspace" @click="onSettings">{{ workspaceInitial }}</div>
+    <div class="ws" title="Switch workspace" data-testid="rail-workspace" @click="onWorkspace">{{ workspaceInitial }}</div>
     <div :class="`icon ${active === 'chat' ? 'active' : ''}`" title="Chat" data-testid="rail-chat" @click="onNav('chat')"><MessageSquare :size="20" /></div>
     <div :class="`icon ${active === 'search' ? 'active' : ''}`" title="Search" data-testid="rail-search" @click="onNav('search')"><Search :size="20" /></div>
     <div class="icon" title="Tasks (placeholder)"><CheckCheck :size="20" /></div>
