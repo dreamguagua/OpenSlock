@@ -83,6 +83,35 @@ export async function loginWithPassword(
   return { token, workspaceId: acc.workspaceId, handle: acc.handle };
 }
 
+/** 取某账号的登录邮箱(account 无 RLS,按 ws+handle 全局查)。无账号返回 null。 */
+export async function getAccountEmail(workspaceId: string, handle: string): Promise<string | null> {
+  const [acc] = await getDb()
+    .select({ email: s.account.email })
+    .from(s.account)
+    .where(and(eq(s.account.workspaceId, workspaceId), eq(s.account.handle, handle)));
+  return acc?.email ?? null;
+}
+
+export type ChangePasswordResult = "ok" | "wrong_password" | "not_found";
+
+/** 改密:校验当前密码 → 写入新 scrypt 哈希。 */
+export async function changePassword(
+  workspaceId: string,
+  handle: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<ChangePasswordResult> {
+  const db = getDb();
+  const [acc] = await db
+    .select()
+    .from(s.account)
+    .where(and(eq(s.account.workspaceId, workspaceId), eq(s.account.handle, handle)));
+  if (!acc) return "not_found";
+  if (!verifyPassword(currentPassword, acc.passwordHash)) return "wrong_password";
+  await db.update(s.account).set({ passwordHash: hashPassword(newPassword) }).where(eq(s.account.id, acc.id));
+  return "ok";
+}
+
 /** 吊销一个 token(置 revoked_at)。返回是否命中一条有效凭证。 */
 export async function revokeToken(token: string): Promise<boolean> {
   if (!token || tierOf(token) === null) return false;

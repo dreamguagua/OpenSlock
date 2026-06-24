@@ -47,7 +47,9 @@ export interface ChannelFile extends AttachmentMeta {
 export interface Me {
   tier: string;
   actor: Actor;
+  handle?: string;
   displayName: string;
+  email?: string | null;
   workspace: { id: string; name: string; slug: string };
 }
 export interface ActionCard {

@@ -49,6 +49,8 @@ export interface CrewState {
   createMachine: (name?: string) => Promise<CreateMachineResult>;
   renameMachine: (id: string, name: string) => Promise<Machine>;
   deleteMachine: (id: string) => Promise<void>;
+  /** 重新拉取 server-info(频道/成员/agent);改完资料后刷新成员显示名等。 */
+  refreshDirectory: () => Promise<void>;
 }
 
 export function useCrew(token: string): CrewState {
@@ -320,6 +322,7 @@ export function useCrew(token: string): CrewState {
     createChannel, joinChannel, leaveChannel, archiveChannel, addChannelMember, removeChannelMember,
     claimTask, setTaskStatus, unclaimTask, moveTask, toggleReaction, toggleSave, sendWithFiles, replyWithFiles,
     machines, refreshMachines, createMachine, renameMachine, deleteMachine,
+    refreshDirectory: loadServerInfo,
     actionsTick,
   }) as CrewState;
 }

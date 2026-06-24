@@ -879,6 +879,13 @@ export class MemoryStore {
       .map((u) => ({ handle: u.handle, displayName: u.displayName, kind: "human" as const }));
     return { channels, agents, humans };
   }
+
+  updateUserProfile(workspaceId: string, handle: string, patch: { displayName?: string | undefined }) {
+    const u = this.users.find((x) => x.workspaceId === workspaceId && x.handle === handle);
+    if (!u) return null;
+    if (patch.displayName !== undefined) u.displayName = patch.displayName;
+    return { handle: u.handle, displayName: u.displayName, kind: "human" as const };
+  }
 }
 
 export interface MemoryRepos {
@@ -976,6 +983,7 @@ export function createMemoryRepos(store: MemoryStore = new MemoryStore()): Memor
     directory: {
       serverInfo: async (ws, viewer) => store.serverInfo(ws, viewer),
       workspace: async (ws) => store.workspaceInfo(ws),
+      updateUserProfile: async (ws, handle, patch) => store.updateUserProfile(ws, handle, patch),
     },
     channels: {
       getOrCreateDm: async (ws, human, handle, name) => store.getOrCreateDm(ws, human, handle, name),

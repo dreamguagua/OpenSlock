@@ -67,6 +67,10 @@ export const api = {
   serverInfo: () => req<ServerInfo>("GET", "/api/server-info"),
   logout: () => req<{ revoked: boolean }>("POST", "/api/auth/logout"),
   me: () => req<Me>("GET", "/api/me"),
+  updateProfile: (patch: { displayName: string }) =>
+    req<{ handle: string; displayName: string }>("PATCH", "/api/me/profile", patch),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    req<{ changed: boolean }>("POST", "/api/me/password", { currentPassword, newPassword }),
   actions: () => req<ActionCard[]>("GET", "/api/actions"),
   executeAction: (id: string) => req<ActionCard>("POST", `/api/actions/${encodeURIComponent(id)}/execute`),
   dismissAction: (id: string) => req<ActionCard>("POST", `/api/actions/${encodeURIComponent(id)}/dismiss`),

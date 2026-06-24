@@ -192,11 +192,17 @@ export interface WorkspaceInfo {
   readonly name: string;
   readonly slug: string;
 }
+/** human 用户资料可改字段(Account 页 Save Profile)。 */
+export interface UserProfilePatch {
+  readonly displayName?: string | undefined;
+}
 export interface DirectoryRepo {
   /** 列出工作区的频道(含调用方的 joined / unread)、agents、humans。 */
   serverInfo(workspaceId: string, viewer?: Actor): Promise<ServerInfo>;
   /** 工作区元信息(name/slug)。不存在返回 null。 */
   workspace(workspaceId: string): Promise<WorkspaceInfo | null>;
+  /** 更新某 human 用户资料(displayName);用户不存在返回 null。 */
+  updateUserProfile(workspaceId: string, handle: string, patch: UserProfilePatch): Promise<MemberInfo | null>;
 }
 
 export interface NewChannel {

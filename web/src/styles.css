@@ -610,3 +610,59 @@ input:focus, textarea:focus, select:focus { outline: none; }
 .act-where { color: #6366f1; font-size: 12px; font-weight: 600; }
 .act-when { color: var(--muted); font-size: 11px; font-family: ui-monospace, monospace; }
 .act-text { color: var(--ink); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ===== Settings / Account 面板(仿 raft:左导航 + 右内容) ===== */
+.settings-modal {
+  width: 860px; max-width: 94vw; height: 600px; max-height: 88vh;
+  background: #fff; border: var(--bd); border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(28, 28, 40, .18); display: flex; overflow: hidden;
+}
+.settings-nav { width: 232px; flex: none; background: var(--col); border-right: var(--bd); padding: 16px 12px; overflow-y: auto; }
+.settings-nav-title { font-weight: 700; font-size: 18px; padding: 0 8px 12px; }
+.settings-nav-group { margin-bottom: 14px; }
+.settings-nav-group-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); padding: 0 8px; margin-bottom: 4px; }
+.settings-nav-item {
+  display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
+  padding: 7px 8px; border: 1px solid transparent; border-radius: var(--radius);
+  background: transparent; color: var(--ink); font-weight: 600; font-size: 13px;
+}
+.settings-nav-item:hover { background: #ececf1; }
+.settings-nav-item.active { background: var(--pink-soft); border: var(--bd); }
+.settings-nav-label { flex: 1; }
+.settings-soon { font-size: 10px; font-weight: 700; color: var(--muted); background: var(--grey-pill); border-radius: 999px; padding: 1px 6px; }
+.settings-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.settings-content-head { display: flex; align-items: center; justify-content: space-between; height: var(--head-h); flex: none; padding: 0 18px; border-bottom: var(--bd); font-weight: 700; font-size: 16px; }
+.icon-btn { border: none; background: transparent; color: var(--muted); font-size: 16px; line-height: 1; padding: 4px 8px; border-radius: var(--radius); }
+.icon-btn:hover { background: #ececf1; color: var(--ink); }
+.settings-content-body { padding: 20px 22px; overflow-y: auto; }
+
+.acct-id { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.acct-id-name { font-weight: 700; font-size: 16px; }
+.acct-id-handle { color: var(--muted); font-size: 13px; }
+.acct-label { display: block; font-weight: 600; font-size: 12px; margin: 12px 0 5px; }
+.acct-label .hint { color: var(--muted); font-weight: 600; }
+.acct-input { width: 100%; border: var(--bd); border-radius: var(--radius); padding: 9px 11px; font-size: 13px; box-sizing: border-box; }
+.acct-input:focus { border-color: var(--yellow); box-shadow: 0 0 0 2px rgba(99, 102, 241, .22); outline: none; }
+.acct-input:disabled { background: #f4f4f7; color: var(--muted); cursor: not-allowed; }
+/* field-hint 默认 -10px 负上边距(贴在有底边距的表单输入下用);.acct-input 无底边距,会被上拉压住输入框,这里抵消 */
+.acct-input + .field-hint { margin-top: 5px; }
+.acct-email-row { display: flex; align-items: center; gap: 10px; }
+.acct-email-row .acct-input { flex: 1; }
+.verified-pill { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 11px; font-weight: 700; color: #15803d; background: #dcfce7; border-radius: 999px; padding: 3px 9px; }
+.acct-msg { font-size: 12px; font-weight: 600; margin: 10px 0 0; }
+.acct-msg.ok { color: #15803d; }
+.acct-msg.err { color: #b91c1c; }
+.acct-save { margin-top: 14px; }
+.acct-divider { height: 1px; background: var(--line); margin: 22px 0; }
+.acct-section-label { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.conn-acct { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: var(--bd); }
+.conn-acct:last-of-type { border-bottom: none; }
+.conn-acct-name { font-weight: 600; font-size: 13px; }
+.conn-acct-sub { display: block; font-weight: 500; font-size: 11px; color: var(--muted); margin-top: 2px; max-width: 460px; }
+.acct-collapse { display: flex; align-items: center; gap: 7px; border: none; background: transparent; color: var(--ink); font-weight: 600; font-size: 13px; padding: 0; }
+.acct-pw { margin-top: 12px; }
+.acct-conn { margin-top: 14px; font-size: 12px; }
+.field-hint.err { color: #b91c1c; }
+.settings-soon-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--muted); padding: 80px 0; text-align: center; }
+.settings-soon-title { font-weight: 700; font-size: 16px; color: var(--ink); }
+.settings-soon-text { font-size: 13px; }

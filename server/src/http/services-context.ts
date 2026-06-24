@@ -64,6 +64,8 @@ import type {
   SeenCursorRepo,
   ServerInfo,
   WorkspaceInfo,
+  MemberInfo,
+  UserProfilePatch,
   TaskListFilter,
   TaskRepo,
   TaskRow,
@@ -150,6 +152,8 @@ export interface AppServices {
   readonly directory: {
     serverInfo(ws: string, viewer?: Actor): Promise<ServerInfo>;
     workspace(ws: string): Promise<WorkspaceInfo | null>;
+    /** 更新当前 human 资料(displayName);用户不存在返回 null。 */
+    updateProfile(ws: string, handle: string, patch: UserProfilePatch): Promise<MemberInfo | null>;
   };
   readonly channels: {
     /** 打开/创建 human 与某 agent 的 DM 频道。 */
@@ -333,6 +337,7 @@ export function createServices(
     directory: {
       serverInfo: (ws, viewer) => dirSvc.serverInfo(ws, viewer),
       workspace: (ws) => dirSvc.workspace(ws),
+      updateProfile: (ws, handle, patch) => dirSvc.updateProfile(ws, handle, patch),
     },
     agents: {
       list: (ws) => agentSvc.list(ws),

@@ -309,6 +309,7 @@ const openTaskThread = (t: Task) => { threadId.value = t.messageId; };
       :connected="c.connected"
       :on-close="() => showSettings = false"
       :on-logout="() => { showSettings = false; onLogout(); }"
+      :on-profile-saved="() => c.refreshDirectory()"
     />
 
     <ImportAgentDialog

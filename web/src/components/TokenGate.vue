@@ -10,14 +10,22 @@ const props = defineProps<{ onConnect: (token: string) => void }>();
 const mode = ref<"signin" | "register">("signin");
 const email = ref("");
 const password = ref("");
+const confirmPassword = ref("");
 const workspaceName = ref("");
 const displayName = ref("");
 const error = ref<string | null>(null);
 const busy = ref(false);
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const emailOk = computed(() => EMAIL_RE.test(email.value.trim()));
+// 即时校验提示(注册模式;字段非空时才提示,避免一进来就报红)
+const emailHint = computed(() => mode.value === "register" && email.value.trim() && !emailOk.value ? "Enter a valid email address" : "");
+const pwHint = computed(() => mode.value === "register" && password.value && password.value.length < 8 ? "Password must be at least 8 characters" : "");
+const confirmHint = computed(() => mode.value === "register" && confirmPassword.value && confirmPassword.value !== password.value ? "Passwords don't match" : "");
+
 const canSubmit = computed(() => mode.value === "signin"
   ? Boolean(email.value.trim() && password.value)
-  : Boolean(email.value.trim() && password.value.length >= 8 && workspaceName.value.trim()));
+  : Boolean(emailOk.value && password.value.length >= 8 && password.value === confirmPassword.value && workspaceName.value.trim()));
 
 const go = async () => {
   if (!canSubmit.value || busy.value) return;
@@ -34,7 +42,11 @@ const go = async () => {
   }
 };
 
-const toggleMode = () => { mode.value = mode.value === "signin" ? "register" : "signin"; error.value = null; };
+const toggleMode = () => {
+  mode.value = mode.value === "signin" ? "register" : "signin";
+  error.value = null;
+  confirmPassword.value = "";
+};
 </script>
 
 <template>
@@ -53,8 +65,15 @@ const toggleMode = () => { mode.value = mode.value === "signin" ? "register" : "
 
       <label>Email</label>
       <input data-testid="email-input" type="email" placeholder="you@example.com" v-model="email" @keydown.enter="go" />
+      <div v-if="emailHint" class="field-hint err" data-testid="email-hint">{{ emailHint }}</div>
       <label>Password <span v-if="mode === 'register'" class="hint">(min 8 chars)</span></label>
       <input data-testid="password-input" type="password" placeholder="••••••••" v-model="password" @keydown.enter="go" />
+      <div v-if="pwHint" class="field-hint err" data-testid="pw-hint">{{ pwHint }}</div>
+      <template v-if="mode === 'register'">
+        <label>Confirm password</label>
+        <input data-testid="confirm-password-input" type="password" placeholder="••••••••" v-model="confirmPassword" @keydown.enter="go" />
+        <div v-if="confirmHint" class="field-hint err" data-testid="confirm-hint">{{ confirmHint }}</div>
+      </template>
       <div v-if="error" class="gate-error" data-testid="login-error">{{ error }}</div>
       <button class="nb-btn primary" data-testid="signin-btn" :disabled="busy || !canSubmit" @click="go">
         {{ busy ? "Working…" : mode === "signin" ? "Sign In" : "Create Workspace" }}

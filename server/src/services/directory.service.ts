@@ -4,7 +4,7 @@
  */
 
 import type { Actor } from "../domain/actor.js";
-import type { DirectoryRepo, ServerInfo, WorkspaceInfo } from "../repo/types.js";
+import type { DirectoryRepo, MemberInfo, ServerInfo, UserProfilePatch, WorkspaceInfo } from "../repo/types.js";
 
 export class DirectoryService {
   constructor(private readonly directory: DirectoryRepo) {}
@@ -15,5 +15,9 @@ export class DirectoryService {
 
   async workspace(workspaceId: string): Promise<WorkspaceInfo | null> {
     return this.directory.workspace(workspaceId);
+  }
+
+  async updateProfile(workspaceId: string, handle: string, patch: UserProfilePatch): Promise<MemberInfo | null> {
+    return this.directory.updateUserProfile(workspaceId, handle, patch);
   }
 }

@@ -12,6 +12,15 @@ import { maybePruneWorklog } from "../worklog-prune.js";
 import { resolveRequestOrigin } from "../request-origin.js";
 import { mentionedAgents } from "../../domain/mention.js";
 import { toDTO as attachmentDto } from "../../services/attachment.service.js";
+import { changePassword, getAccountEmail } from "../../auth/service.js";
+
+const ProfileBody = z.object({
+  displayName: z.string().trim().min(1, "display name required").max(80),
+});
+const PasswordBody = z.object({
+  currentPassword: z.string().min(1, "current password required"),
+  newPassword: z.string().min(8, "new password must be at least 8 characters"),
+});
 
 const SendBody = z.object({
   content: z.string().min(1),
@@ -437,12 +446,54 @@ export async function registerWebRoutes(
         svc.directory.serverInfo(p.workspaceId, p.actor),
       ]);
       const me = [...info.humans, ...info.agents].find((m) => m.handle === p.actor.id);
+      // 登录邮箱(account 仅 pg;内存仓储/无库时优雅降级为 null,不阻塞身份返回)
+      let email: string | null = null;
+      try {
+        if (p.tier === "user" && p.actor.type === "human") {
+          email = await getAccountEmail(p.workspaceId, p.actor.id);
+        }
+      } catch {
+        email = null;
+      }
       return ok({
         tier: p.tier,
         actor: p.actor,
+        handle: p.actor.id,
         displayName: me?.displayName ?? p.actor.id,
+        email,
         workspace: workspace ?? { id: p.workspaceId, name: p.workspaceId, slug: p.workspaceId },
       });
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 更新当前用户资料(Account 页 Save Profile):目前支持改 displayName。
+  app.patch("/api/me/profile", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      if (p.actor.type !== "human") return reply.code(403).send(err("FORBIDDEN", "only human accounts have a profile"));
+      const b = ProfileBody.parse(req.body);
+      const updated = await svc.directory.updateProfile(p.workspaceId, p.actor.id, { displayName: b.displayName });
+      if (!updated) return reply.code(404).send(err("NOT_FOUND", "user not found"));
+      return ok(updated);
+    } catch (e) {
+      const { status, body } = toHttpError(e);
+      return reply.code(status).send(body);
+    }
+  });
+
+  // 修改密码(Account 页 Change Password):校验当前密码 → 写新密码。
+  app.post("/api/me/password", guard, async (req, reply) => {
+    try {
+      const p = principalOf(req);
+      if (p.actor.type !== "human") return reply.code(403).send(err("FORBIDDEN", "only human accounts can change password"));
+      const b = PasswordBody.parse(req.body);
+      const r = await changePassword(p.workspaceId, p.actor.id, b.currentPassword, b.newPassword);
+      if (r === "not_found") return reply.code(404).send(err("NOT_FOUND", "account not found"));
+      if (r === "wrong_password") return reply.code(400).send(err("BAD_REQUEST", "current password is incorrect"));
+      return ok({ changed: true });
     } catch (e) {
       const { status, body } = toHttpError(e);
       return reply.code(status).send(body);

@@ -256,6 +256,18 @@ export const directory: DirectoryRepo = {
       };
     });
   },
+  async updateUserProfile(ws, handle, patch) {
+    return withTenant(ws, async (tx) => {
+      const set: { displayName?: string } = {};
+      if (patch.displayName !== undefined) set.displayName = patch.displayName;
+      if (Object.keys(set).length === 0) {
+        const [u] = await tx.select().from(s.appUser).where(eq(s.appUser.handle, handle));
+        return u ? { handle: u.handle, displayName: u.displayName, kind: "human" as const } : null;
+      }
+      const [u] = await tx.update(s.appUser).set(set).where(eq(s.appUser.handle, handle)).returning();
+      return u ? { handle: u.handle, displayName: u.displayName, kind: "human" as const } : null;
+    });
+  },
 };
 
 export const channels: ChannelRepo = {

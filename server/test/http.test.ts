@@ -430,6 +430,28 @@ describe("HTTP API (fastify.inject, 内存仓储)", () => {
     expect(r.statusCode).toBe(401);
   });
 
+  // ---- Account: 改 Display Name ----
+  it("PATCH /api/me/profile 改 displayName → 200,serverInfo 反映新名", async () => {
+    repos.store.seedUser({ workspaceId: "ws1", handle: "alice", displayName: "Alice" });
+    const r = await app.inject({ method: "PATCH", url: "/api/me/profile", headers: auth("user-tok"), payload: { displayName: "Alice Liddell" } });
+    expect(r.statusCode).toBe(200);
+    expect(r.json().data).toMatchObject({ handle: "alice", displayName: "Alice Liddell" });
+    // /api/me 复读应得到新 displayName
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: auth("user-tok") });
+    expect(me.json().data.displayName).toBe("Alice Liddell");
+  });
+
+  it("PATCH /api/me/profile 用户不存在 → 404", async () => {
+    const r = await app.inject({ method: "PATCH", url: "/api/me/profile", headers: auth("user-tok"), payload: { displayName: "Nobody" } });
+    expect(r.statusCode).toBe(404);
+  });
+
+  it("PATCH /api/me/profile 空 displayName → 400(校验)", async () => {
+    repos.store.seedUser({ workspaceId: "ws1", handle: "alice", displayName: "Alice" });
+    const r = await app.inject({ method: "PATCH", url: "/api/me/profile", headers: auth("user-tok"), payload: { displayName: "  " } });
+    expect(r.statusCode).toBe(400);
+  });
+
   // ---- Files tab (频道附件汇总) ----
   it("Files:频道内附件汇总(含上传者+时间),倒序", async () => {
     const m1 = (await app.inject({ method: "POST", url: "/api/channels/c1/messages", headers: auth("user-tok"), payload: { content: "a" } })).json().data.id;
